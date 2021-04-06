@@ -27,37 +27,40 @@ s3_client = boto3.client('s3')
 bucket = 'preprocessed-carma-core-validation'
 run = "LS_SMPL_v3.5.1_r5"
 
+# cleaning up loading the topics
+def load_topic(csv_name):
+    file_name = csv_loc_from_name(run) + csv_name
+    obj = s3_client.get_object(Bucket=bucket, Key=file_name)
+    df = pd.read_csv(obj['Body'])
+    # get elapsed time in seconds as a field -- could improve precision,
+    # 0 will vary slightly from topic-to-topic since it's based on the first message rec'd
+    df['elapsed_time'] = (df.rosbagTimestamp-min(df.rosbagTimestamp))/1000000000.0
+    # TODO: elapsed distance
+    return df
+
 # load necessary topics
-file_name = csv_loc_from_name(run) + "hardware_interface_vehicle_cmd.csv"
-obj = s3_client.get_object(Bucket=bucket, Key=file_name)
-df_cmd = pd.read_csv(obj['Body'])
+df_cmd = load_topic("hardware_interface_vehicle_cmd.csv")
+df_spd = load_topic("hardware_interface_pacmod_parsed_tx_vehicle_speed_rpt.csv")
+df_imu = load_topic("hardware_interface_imu_raw.csv")
+df_state = load_topic("guidance_state.csv")
+df_pose = load_topic("localization_current_pose.csv")
+df_steer = load_topic("hardware_interface_pacmod_parsed_tx_steer_rpt.csv")
+df_brake = load_topic("hardware_interface_pacmod_parsed_tx_brake_rpt.csv")
 
-file_name = csv_loc_from_name(run) + "hardware_interface_pacmod_parsed_tx_vehicle_speed_rpt.csv"
-obj = s3_client.get_object(Bucket=bucket, Key=file_name)
-df_spd = pd.read_csv(obj['Body'])
 
-file_name = csv_loc_from_name(run) + "hardware_interface_imu_raw.csv"
-obj = s3_client.get_object(Bucket=bucket, Key=file_name)
-df_imu = pd.read_csv(obj['Body'])
-
-file_name = csv_loc_from_name(run) + "guidance_state.csv"
-obj = s3_client.get_object(Bucket=bucket, Key=file_name)
-df_state = pd.read_csv(obj['Body'])
-
-file_name = csv_loc_from_name(run) + "localization_current_pose.csv"
-obj = s3_client.get_object(Bucket=bucket, Key=file_name)
-df_pose = pd.read_csv(obj['Body'])
+# set up scatterplot default symbol to be small
+plt.rcParams['scatter.marker'] = '.'
 
 # get state of CARMA system (4=ENGAGED) 
 plt.figure(1)
-plt.plot((df_state.rosbagTimestamp-min(df_state.rosbagTimestamp))/1000000000, df_state.state, label="state")
+plt.plot(df_state.elapsed_time, df_state.state, label="state")
 plt.legend()
 plt.title(run)
 
 # speed, commanded vs actual
 plt.figure(2)
-plt.scatter((df_cmd.rosbagTimestamp-min(df_cmd.rosbagTimestamp))/1000000000, df_cmd.linear_velocity, marker = ".", label = "commanded")
-plt.scatter((df_spd.rosbagTimestamp-min(df_spd.rosbagTimestamp))/1000000000, df_spd.vehicle_speed, marker = ".",  label = "actual")
+plt.scatter(df_cmd.elapsed_time, df_cmd.linear_velocity, label = "commanded")
+plt.scatter(df_spd.elapsed_time, df_spd.vehicle_speed, label = "actual")
 plt.xlabel("Time (elapsed seconds)")
 plt.ylabel("Speed (m/s)")
 plt.legend()
@@ -66,9 +69,9 @@ plt.title(run)
 # accel, commanded vs actual
 # vehicle_cmd has two different acceleration command values, but neither seem to make sense
 plt.figure(3)
-plt.scatter((df_cmd.rosbagTimestamp-min(df_cmd.rosbagTimestamp))/1000000000, df_cmd.accel, marker = ".", label = "commanded")
-plt.scatter((df_cmd.rosbagTimestamp-min(df_cmd.rosbagTimestamp))/1000000000, df_cmd.linear_acceleration, marker = ".", label = "commanded2")
-plt.scatter((df_imu.rosbagTimestamp-min(df_imu.rosbagTimestamp))/1000000000, df_imu["x.2"], marker = ".", label = "actual")
+plt.scatter(df_cmd.elapsed_time, df_cmd.accel, label = "commanded")
+plt.scatter(df_cmd.elapsed_time, df_cmd.linear_acceleration, label = "commanded2")
+plt.scatter(df_imu.elapsed_time, df_imu["x.2"], label = "actual")
 plt.xlabel("Time (elapsed seconds)")
 plt.ylabel("Acceleration (m/s^2)")
 plt.legend()
@@ -97,10 +100,29 @@ gdf_pose = gpd.GeoDataFrame(df_pose, geometry=gpd.points_from_xy(df_pose.x,df_po
 gdf_pose["dist_to_cl"] = gdf_pose.geometry.distance(centerline)
 ## setup figure
 plt.figure(4)
-plt.scatter((gdf_pose.rosbagTimestamp-min(gdf_pose.rosbagTimestamp))/1000000000, gdf_pose.dist_to_cl) 
+plt.scatter(gdf_pose.elapsed_time, gdf_pose.dist_to_cl) 
 plt.xlabel("Time (elapsed seconds)")
 plt.ylabel("Crosstrack distance to road centerline (m)")
 plt.ylim(0,3.4) # Tim's assumption: lane width is 3.4m = 11ft
 #plt.legend()
 plt.title(run)
+
+# steering angle actual vs commanded
+plt.figure(5)
+plt.scatter(df_steer.elapsed_time, df_steer.command, label="input")
+plt.scatter(df_steer.elapsed_time, df_steer.output, label="output")
+plt.xlabel("Time (elapsed seconds)")
+plt.ylabel("Steering angle (rad)")
+plt.legend()
+plt.title(run)
+
+# brake pct actual vs commanded
+plt.figure(6)
+plt.scatter(df_brake.elapsed_time, df_brake.command, label="input")
+plt.scatter(df_brake.elapsed_time, df_brake.output, label="output")
+plt.xlabel("Time (elapsed seconds)")
+plt.ylabel("Braking (percent)")
+plt.legend()
+plt.title(run)
+
 plt.show()

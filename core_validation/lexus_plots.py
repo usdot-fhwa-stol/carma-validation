@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 
 s3_client = boto3.client('s3')
 bucket = 'preprocessed-carma-core-validation'
-run = "LS_SMPL_v3.5.1_r3"
+run = "LS_SMPL_v3.5.1_r11"
 
 # load necessary topics
 file_name = csv_loc_from_name(run) + "hardware_interface_vehicle_cmd.csv"
@@ -44,15 +44,24 @@ file_name = csv_loc_from_name(run) + "guidance_state.csv"
 obj = s3_client.get_object(Bucket=bucket, Key=file_name)
 df_state = pd.read_csv(obj['Body'])
 
-# get state (4=ENGAGED) 
+# get state of CARMA system (4=ENGAGED) 
 plt.figure(1)
 plt.plot((df_state.rosbagTimestamp-min(df_state.rosbagTimestamp))/1000000000, df_state.state, label="state")
 plt.legend()
 plt.title(run)
 
+# speed, commanded vs actual
+plt.figure(2)
+plt.scatter((df_cmd.rosbagTimestamp-min(df_cmd.rosbagTimestamp))/1000000000, df_cmd.linear_velocity, marker = ".", label = "commanded")
+plt.scatter((df_spd.rosbagTimestamp-min(df_spd.rosbagTimestamp))/1000000000, df_spd.vehicle_speed, marker = ".",  label = "actual")
+plt.xlabel("Time (elapsed seconds)")
+plt.ylabel("Speed (m/s)")
+plt.legend()
+plt.title(run)
+
 # accel, commanded vs actual
 # vehicle_cmd has two different acceleration command values, but neither seem to make sense
-plt.figure(2)
+plt.figure(3)
 plt.scatter((df_cmd.rosbagTimestamp-min(df_cmd.rosbagTimestamp))/1000000000, df_cmd.accel, marker = ".", label = "commanded")
 plt.scatter((df_cmd.rosbagTimestamp-min(df_cmd.rosbagTimestamp))/1000000000, df_cmd.linear_acceleration, marker = ".", label = "commanded2")
 plt.scatter((df_imu.rosbagTimestamp-min(df_imu.rosbagTimestamp))/1000000000, df_imu["x.2"], marker = ".", label = "actual")
@@ -70,12 +79,4 @@ plt.title(run)
 # plt.legend()
 # plt.title(run)
 
-# speed, commanded vs actual
-plt.figure(3)
-plt.scatter((df_cmd.rosbagTimestamp-min(df_cmd.rosbagTimestamp))/1000000000, df_cmd.linear_velocity, marker = ".", label = "commanded")
-plt.scatter((df_spd.rosbagTimestamp-min(df_spd.rosbagTimestamp))/1000000000, df_spd.vehicle_speed, marker = ".",  label = "actual")
-plt.xlabel("Time (elapsed seconds)")
-plt.ylabel("Speed (m/s)")
-plt.legend()
-plt.title(run)
 plt.show()

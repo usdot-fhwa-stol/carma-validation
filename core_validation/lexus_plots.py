@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 
 s3_client = boto3.client('s3')
 bucket = 'preprocessed-carma-core-validation'
-run = "LS_SMPL_v3.5.1_r11"
+run = "LS_SMPL_v3.5.1_r5"
 
 # load necessary topics
 file_name = csv_loc_from_name(run) + "hardware_interface_vehicle_cmd.csv"
@@ -43,6 +43,10 @@ df_imu = pd.read_csv(obj['Body'])
 file_name = csv_loc_from_name(run) + "guidance_state.csv"
 obj = s3_client.get_object(Bucket=bucket, Key=file_name)
 df_state = pd.read_csv(obj['Body'])
+
+file_name = csv_loc_from_name(run) + "localization_current_pose.csv"
+obj = s3_client.get_object(Bucket=bucket, Key=file_name)
+df_pose = pd.read_csv(obj['Body'])
 
 # get state of CARMA system (4=ENGAGED) 
 plt.figure(1)
@@ -79,4 +83,24 @@ plt.title(run)
 # plt.legend()
 # plt.title(run)
 
+# crosstrack distance from vehicle centroid to center dashed line 
+df_cl = pd.read_csv("misc/sp_loop_centerline.csv")
+df_cl = df_cl.set_index(df_cl.way_id * 10000 + df_cl.way_pos) #ensure correct ordering
+import geopandas as gpd
+from shapely.geometry import Point, LineString
+## convert points to a linestring
+## based on https://stackoverflow.com/questions/51071365/convert-points-to-lines-geopandas
+points_list = [Point(xy) for xy in zip(df_cl.X, df_cl.Y)]
+centerline = LineString(points_list)
+## get distance to centerline
+gdf_pose = gpd.GeoDataFrame(df_pose, geometry=gpd.points_from_xy(df_pose.x,df_pose.y))
+gdf_pose["dist_to_cl"] = gdf_pose.geometry.distance(centerline)
+## setup figure
+plt.figure(4)
+plt.scatter((gdf_pose.rosbagTimestamp-min(gdf_pose.rosbagTimestamp))/1000000000, gdf_pose.dist_to_cl) 
+plt.xlabel("Time (elapsed seconds)")
+plt.ylabel("Crosstrack distance to road centerline (m)")
+plt.ylim(0,3.4) # Tim's assumption: lane width is 3.4m = 11ft
+#plt.legend()
+plt.title(run)
 plt.show()

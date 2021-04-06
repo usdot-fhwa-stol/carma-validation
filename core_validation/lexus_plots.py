@@ -32,8 +32,9 @@ def load_topic(csv_name):
     file_name = csv_loc_from_name(run) + csv_name
     obj = s3_client.get_object(Bucket=bucket, Key=file_name)
     df = pd.read_csv(obj['Body'])
-    # get elapsed time in seconds as a field -- could improve precision,
-    # 0 will vary slightly from topic-to-topic since it's based on the first message rec'd
+    # get elapsed time in seconds as a field -- should revise to improve precision
+    # TODO: refine by picking a topic and setting the run-wide start timestamp to use
+    # instead of min(df.rosbagTimestamp) for each run's start
     df['elapsed_time'] = (df.rosbagTimestamp-min(df.rosbagTimestamp))/1000000000.0
     # TODO: elapsed distance
     return df
@@ -45,6 +46,7 @@ df_imu = load_topic("hardware_interface_imu_raw.csv")
 df_state = load_topic("guidance_state.csv")
 df_pose = load_topic("localization_current_pose.csv")
 df_steer = load_topic("hardware_interface_pacmod_parsed_tx_steer_rpt.csv")
+df_throttle = load_topic("hardware_interface_pacmod_parsed_tx_accel_rpt.csv")
 df_brake = load_topic("hardware_interface_pacmod_parsed_tx_brake_rpt.csv")
 
 
@@ -69,22 +71,13 @@ plt.title(run)
 # accel, commanded vs actual
 # vehicle_cmd has two different acceleration command values, but neither seem to make sense
 plt.figure(3)
-plt.scatter(df_cmd.elapsed_time, df_cmd.accel, label = "commanded")
-plt.scatter(df_cmd.elapsed_time, df_cmd.linear_acceleration, label = "commanded2")
+# plt.scatter(df_cmd.elapsed_time, df_cmd.accel, label = "commanded") # this is always all 0s
+plt.scatter(df_cmd.elapsed_time, df_cmd.linear_acceleration, label = "commanded")
 plt.scatter(df_imu.elapsed_time, df_imu["x.2"], label = "actual")
 plt.xlabel("Time (elapsed seconds)")
 plt.ylabel("Acceleration (m/s^2)")
 plt.legend()
 plt.title(run)
-
-# alternate option using /hardware_interface/pacmod/parsed_tx/accel_rpt?
-# plt.figure(3)
-# plt.scatter((df2.rosbagTimestamp-min(df2.rosbagTimestamp))/1000000000, df2.command,marker = ".", label="input")
-# plt.scatter((df2.rosbagTimestamp-min(df2.rosbagTimestamp))/1000000000, df2.output,marker = ".", label="output")
-# plt.xlabel("Time (elapsed seconds)")
-# plt.ylabel("Throttle (0-100%)")
-# plt.legend()
-# plt.title(run)
 
 # crosstrack distance from vehicle centroid to center dashed line 
 df_cl = pd.read_csv("misc/sp_loop_centerline.csv")
@@ -107,8 +100,18 @@ plt.ylim(0,3.4) # Tim's assumption: lane width is 3.4m = 11ft
 #plt.legend()
 plt.title(run)
 
-# steering angle actual vs commanded
+# throttle pct actual vs commanded
 plt.figure(5)
+plt.scatter(df_throttle.elapsed_time, df_throttle.command, label="input")
+plt.scatter(df_throttle.elapsed_time, df_throttle.output, label="output")
+plt.xlabel("Time (elapsed seconds)")
+plt.ylabel("Throttle (percent))")
+plt.legend()
+plt.title(run)
+
+
+# steering angle actual vs commanded
+plt.figure(6)
 plt.scatter(df_steer.elapsed_time, df_steer.command, label="input")
 plt.scatter(df_steer.elapsed_time, df_steer.output, label="output")
 plt.xlabel("Time (elapsed seconds)")
@@ -116,8 +119,9 @@ plt.ylabel("Steering angle (rad)")
 plt.legend()
 plt.title(run)
 
+
 # brake pct actual vs commanded
-plt.figure(6)
+plt.figure(7)
 plt.scatter(df_brake.elapsed_time, df_brake.command, label="input")
 plt.scatter(df_brake.elapsed_time, df_brake.output, label="output")
 plt.xlabel("Time (elapsed seconds)")

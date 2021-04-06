@@ -68,12 +68,12 @@ plt.ylabel("Speed (m/s)")
 plt.legend()
 plt.title(run)
 
-# accel, commanded vs actual
+# longitudinal accel, commanded vs actual
 # vehicle_cmd has two different acceleration command values, but neither seem to make sense
 plt.figure(3)
 # plt.scatter(df_cmd.elapsed_time, df_cmd.accel, label = "commanded") # this is always all 0s
 plt.scatter(df_cmd.elapsed_time, df_cmd.linear_acceleration, label = "commanded")
-plt.scatter(df_imu.elapsed_time, df_imu["x.2"], label = "actual")
+plt.scatter(df_imu.elapsed_time, df_imu["y.2"], label = "actual")
 plt.xlabel("Time (elapsed seconds)")
 plt.ylabel("Acceleration (m/s^2)")
 plt.legend()

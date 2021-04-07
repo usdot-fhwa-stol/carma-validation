@@ -41,19 +41,19 @@ def load_topic(bucket, run, csv_name):
 
 s3_client = boto3.client('s3')
 bucket = 'preprocessed-carma-core-validation'
-run = "F_SPLMS_v3.5.1_r11"
+run = "P_SPLMS_v3.5.1_r5"
 
 
 # load necessary topics
 topics = {}
 topics['cmd'] = "hardware_interface_vehicle_cmd.csv"
-topics['spd'] = "hardware_interface_ds_fusion_steering_report.csv"
-topics['imu'] = "hardware_interface_ds_fusion_imu_data_raw.csv"
+topics['spd'] = "hardware_interface_misc_report.csv"
+topics['imu'] = "hardware_interface_imu_data_raw.csv"
 topics['state'] = "guidance_state.csv"
 topics['pose'] = "localization_current_pose.csv"
-topics['steer'] = "hardware_interface_ds_fusion_steering_report.csv"
-topics['throttle'] = "hardware_interface_ds_fusion_throttle_report.csv"
-topics['brake'] = "hardware_interface_ds_fusion_brake_report.csv"
+topics['steer'] = "hardware_interface_steering_report.csv"
+topics['throttle'] = "hardware_interface_accelerator_pedal_report.csv"
+topics['brake'] = "hardware_interface_brake_report.csv"
 
 dfs = {k: load_topic(bucket, run, v) for k, v in topics.items()}
 
@@ -71,7 +71,7 @@ plt.title(run + ",\n" + topics['state'])
 # speed, commanded vs actual
 plt.figure(2)
 plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_velocity, label = "commanded")
-plt.scatter(dfs['spd'].elapsed_time, dfs['spd'].speed, label = "actual")
+plt.scatter(dfs['spd'].elapsed_time, dfs['spd'].vehicle_speed, label = "actual")
 plt.xlabel("Time (elapsed seconds)")
 plt.ylabel("Speed (m/s)")
 plt.legend()
@@ -109,7 +109,7 @@ plt.title(run + ",\n" + topics['pose'])
 
 # throttle pct actual vs commanded
 plt.figure(5)
-plt.scatter(dfs['throttle'].elapsed_time, dfs['throttle'].pedal_cmd, label="input")
+plt.scatter(dfs['throttle'].elapsed_time, dfs['throttle'].pedal_input, label="input")
 plt.scatter(dfs['throttle'].elapsed_time, dfs['throttle'].pedal_output, label="output")
 plt.xlabel("Time (elapsed seconds)")
 plt.ylabel("Throttle (percent))")
@@ -118,7 +118,7 @@ plt.title(run + ",\n" + topics['throttle'])
 
 # steering angle actual vs commanded
 plt.figure(6)
-plt.scatter(dfs['steer'].elapsed_time, dfs['steer'].steering_wheel_cmd, label="input")
+plt.scatter(dfs['steer'].elapsed_time, dfs['steer'].steering_wheel_angle_cmd, label="input")
 plt.scatter(dfs['steer'].elapsed_time, dfs['steer'].steering_wheel_angle, label="output")
 plt.xlabel("Time (elapsed seconds)")
 plt.ylabel("Steering angle (rad)")
@@ -127,7 +127,7 @@ plt.title(run + ",\n" + topics['steer'])
 
 # brake pct actual vs commanded
 plt.figure(7)
-plt.scatter(dfs['brake'].elapsed_time, dfs['brake'].pedal_cmd, label="input")
+plt.scatter(dfs['brake'].elapsed_time, dfs['brake'].pedal_position, label="input")
 plt.scatter(dfs['brake'].elapsed_time, dfs['brake'].pedal_output, label="output")
 plt.xlabel("Time (elapsed seconds)")
 plt.ylabel("Braking (percent)")

@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import geopandas as gpd
 from shapely.geometry import Point, LineString
 
+
 # helper from misc folder
 def csv_loc_from_name(run_name):
     # TODO: generalize or pass as input
@@ -26,6 +27,7 @@ def csv_loc_from_name(run_name):
     csv_loc = csv_loc + "20210318/{}_down-selected/".format(run_no)
     return csv_loc
 
+
 # cleaning up loading the topics
 def load_topic(bucket, run, csv_name):
     file_name = csv_loc_from_name(run) + csv_name
@@ -43,7 +45,6 @@ s3_client = boto3.client('s3')
 bucket = 'preprocessed-carma-core-validation'
 run = "F_SPLMS_v3.5.1_r11"
 
-
 # load necessary topics
 topics = {}
 topics['cmd'] = "hardware_interface_vehicle_cmd.csv"
@@ -56,7 +57,6 @@ topics['throttle'] = "hardware_interface_ds_fusion_throttle_report.csv"
 topics['brake'] = "hardware_interface_ds_fusion_brake_report.csv"
 
 dfs = {k: load_topic(bucket, run, v) for k, v in topics.items()}
-
 
 # set up scatterplot default symbol to be small
 plt.rcParams['scatter.marker'] = '.'

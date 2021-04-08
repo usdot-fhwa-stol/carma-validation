@@ -93,84 +93,107 @@ carma_end_ind = carma_start_ind + z[z == max(z[ia])][0] - 1
 carma_start_time = dfs['state'].loc[carma_start_ind, 'elapsed_time']
 carma_end_time = dfs['state'].loc[carma_end_ind, 'elapsed_time']
 
-# get state of CARMA system (4=ENGAGED) 
-plt.figure(1)
-plt.plot(dfs['state'].elapsed_time, dfs['state'].state, label="state")
-plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
-plt.xlabel("Time (elapsed seconds)")
-plt.legend()
-plt.title(run + ",\n" + topics['state'])
+# # get state of CARMA system (4=ENGAGED) 
+# plt.figure(1)
+# plt.plot(dfs['state'].elapsed_time, dfs['state'].state, label="state")
+# plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
+# plt.xlabel("Time (elapsed seconds)")
+# plt.legend()
+# plt.title(run + ",\n" + topics['state'])
 
-# speed, commanded vs actual
-plt.figure(2)
-plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_velocity, label = "commanded")
-plt.scatter(dfs['spd'].elapsed_time, dfs['spd'].vehicle_speed, label = "actual")
-plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
-plt.xlabel("Time (elapsed seconds)")
-plt.ylabel("Speed (m/s)")
-plt.legend()
-plt.title(run + ",\n" + topics['cmd'] + "\nand " + topics['spd'])
+# # speed, commanded vs actual
+# plt.figure(2)
+# plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_velocity, label = "commanded")
+# plt.scatter(dfs['spd'].elapsed_time, dfs['spd'].vehicle_speed, label = "actual")
+# plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
+# plt.xlabel("Time (elapsed seconds)")
+# plt.ylabel("Speed (m/s)")
+# plt.legend()
+# plt.title(run + ",\n" + topics['cmd'] + "\nand " + topics['spd'])
 
-# longitudinal accel, commanded vs actual
-# vehicle_cmd has two different acceleration command values, but neither seem to make sense
-plt.figure(3)
-# plt.scatter(df_cmd.elapsed_time, df_cmd.accel, label = "commanded") # this is always all 0s
-plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_acceleration, label = "commanded")
-plt.scatter(dfs['imu'].elapsed_time, dfs['imu']['y.2'], label = "actual")
-plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
-plt.xlabel("Time (elapsed seconds)")
-plt.ylabel("Acceleration (m/s^2)")
-plt.legend()
-plt.title(run + ",\n" + topics['cmd'] + "\nand " + topics['imu'])
+# # longitudinal accel, commanded vs actual
+# # vehicle_cmd has two different acceleration command values, but neither seem to make sense
+# plt.figure(3)
+# # plt.scatter(df_cmd.elapsed_time, df_cmd.accel, label = "commanded") # this is always all 0s
+# plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_acceleration, label = "commanded")
+# plt.scatter(dfs['imu'].elapsed_time, dfs['imu']['y.2'], label = "actual")
+# plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
+# plt.xlabel("Time (elapsed seconds)")
+# plt.ylabel("Acceleration (m/s^2)")
+# plt.legend()
+# plt.title(run + ",\n" + topics['cmd'] + "\nand " + topics['imu'])
 
-# crosstrack distance from vehicle centroid to center dashed line 
-df_cl = pd.read_csv("misc/sp_loop_centerline.csv")
-df_cl = df_cl.set_index(df_cl.way_id * 10000 + df_cl.way_pos) #ensure correct ordering
-## convert points to a linestring
-## based on https://stackoverflow.com/questions/51071365/convert-points-to-lines-geopandas
-points_list = [Point(xy) for xy in zip(df_cl.X, df_cl.Y)]
-centerline = LineString(points_list)
-## get distance to centerline
-gdf_pose = gpd.GeoDataFrame(dfs['pose'], geometry=gpd.points_from_xy(dfs['pose'].x,dfs['pose'].y))
-gdf_pose["dist_to_cl"] = gdf_pose.geometry.distance(centerline)
-## setup figure
-plt.figure(4)
-plt.scatter(gdf_pose.elapsed_time, gdf_pose.dist_to_cl) 
-plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
-plt.xlabel("Time (elapsed seconds)")
-plt.ylabel("Crosstrack distance to road centerline (m)")
-plt.ylim(0,3.4) # Tim's assumption: lane width is 3.4m = 11ft
-#plt.legend()
-plt.title(run + ",\n" + topics['pose'])
+# # crosstrack distance from vehicle centroid to center dashed line 
+# df_cl = pd.read_csv("misc/sp_loop_centerline.csv")
+# df_cl = df_cl.set_index(df_cl.way_id * 10000 + df_cl.way_pos) #ensure correct ordering
+# ## convert points to a linestring
+# ## based on https://stackoverflow.com/questions/51071365/convert-points-to-lines-geopandas
+# points_list = [Point(xy) for xy in zip(df_cl.X, df_cl.Y)]
+# centerline = LineString(points_list)
+# ## get distance to centerline
+# gdf_pose = gpd.GeoDataFrame(dfs['pose'], geometry=gpd.points_from_xy(dfs['pose'].x,dfs['pose'].y))
+# gdf_pose["dist_to_cl"] = gdf_pose.geometry.distance(centerline)
+# ## setup figure
+# plt.figure(4)
+# plt.scatter(gdf_pose.elapsed_time, gdf_pose.dist_to_cl) 
+# plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
+# plt.xlabel("Time (elapsed seconds)")
+# plt.ylabel("Crosstrack distance to road centerline (m)")
+# plt.ylim(0,3.4) # Tim's assumption: lane width is 3.4m = 11ft
+# #plt.legend()
+# plt.title(run + ",\n" + topics['pose'])
 
-# throttle pct actual vs commanded
-plt.figure(5)
-plt.scatter(dfs['throttle'].elapsed_time, dfs['throttle'].pedal_input, label="input")
-plt.scatter(dfs['throttle'].elapsed_time, dfs['throttle'].pedal_output, label="output")
-plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
-plt.xlabel("Time (elapsed seconds)")
-plt.ylabel("Throttle (percent))")
-plt.legend()
-plt.title(run + ",\n" + topics['throttle'])
+# # throttle pct actual vs commanded
+# plt.figure(5)
+# plt.scatter(dfs['throttle'].elapsed_time, dfs['throttle'].pedal_input, label="input")
+# plt.scatter(dfs['throttle'].elapsed_time, dfs['throttle'].pedal_output, label="output")
+# plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
+# plt.xlabel("Time (elapsed seconds)")
+# plt.ylabel("Throttle (percent))")
+# plt.legend()
+# plt.title(run + ",\n" + topics['throttle'])
 
-# steering angle actual vs commanded
-plt.figure(6)
-plt.scatter(dfs['steer'].elapsed_time, dfs['steer'].steering_wheel_angle_cmd, label="input")
-plt.scatter(dfs['steer'].elapsed_time, dfs['steer'].steering_wheel_angle, label="output")
-plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
-plt.xlabel("Time (elapsed seconds)")
-plt.ylabel("Steering angle (rad)")
-plt.legend()
-plt.title(run + ",\n" + topics['steer'])
+# # steering angle actual vs commanded
+# plt.figure(6)
+# plt.scatter(dfs['steer'].elapsed_time, dfs['steer'].steering_wheel_angle_cmd, label="input")
+# plt.scatter(dfs['steer'].elapsed_time, dfs['steer'].steering_wheel_angle, label="output")
+# plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
+# plt.xlabel("Time (elapsed seconds)")
+# plt.ylabel("Steering angle (rad)")
+# plt.legend()
+# plt.title(run + ",\n" + topics['steer'])
 
-# brake pct actual vs commanded
-plt.figure(7)
-plt.scatter(dfs['brake'].elapsed_time, dfs['brake'].pedal_position, label="input")
-plt.scatter(dfs['brake'].elapsed_time, dfs['brake'].pedal_output, label="output")
-plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
-plt.xlabel("Time (elapsed seconds)")
-plt.ylabel("Braking (percent)")
+# # brake pct actual vs commanded
+# plt.figure(7)
+# plt.scatter(dfs['brake'].elapsed_time, dfs['brake'].pedal_position, label="input")
+# plt.scatter(dfs['brake'].elapsed_time, dfs['brake'].pedal_output, label="output")
+# plt.axvspan(carma_start_time, carma_end_time, color='lightblue', alpha=0.5)
+# plt.xlabel("Time (elapsed seconds)")
+# plt.ylabel("Braking (percent)")
+# plt.legend()
+# plt.title(run + ",\n" + topics['brake'])
+
+fig, ax1 = plt.subplots()
+
+color11 = 'tab:red'
+color12 = 'tab:orange'
+ax1.set_xlabel('Time (elapsed seconds)')
+ax1.set_ylabel('Speed (m/s)', color=color11)
+ax1.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_velocity, label = "commanded_spd", color=color11, s=10)
+ax1.scatter(dfs['spd'].elapsed_time, dfs['spd'].vehicle_speed, label = "actual_spd", color=color12, s=10)
+ax1.tick_params(axis='y', labelcolor=color11)
+
+ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+color21 = 'tab:blue'
+color22 = 'tab:green'
+ax2.set_ylabel('Acceleration (m/s^2)', color=color21)  # we already handled the x-label with ax1
+ax2.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_acceleration, label = "commanded_accel", color=color21, s=10)
+ax2.scatter(dfs['imu'].elapsed_time, dfs['imu']["y.2"], label = "actual_accel", color=color22, s=10)
+plt.ylim(-5,5) # Tim's assumption: lane width is 3.4m = 11ft
+ax2.tick_params(axis='y', labelcolor=color21)
 plt.legend()
-plt.title(run + ",\n" + topics['brake'])
+
+fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
 plt.show()

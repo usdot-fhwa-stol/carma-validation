@@ -125,6 +125,13 @@ plt.figure(3)
 plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_acceleration, label = "commanded")
 plt.scatter(dfs['imu'].elapsed_time, dfs['imu']['y.2'], label = "actual")
 plt.ylabel("Acceleration (m/s^2)")
+plt.ylim(-5,5)
+plt.figtext(0.99, 0.01,
+ '{} of {} commands outside plot range; min {:.2f}; max {:.2f}'.format(
+     len(dfs['cmd'].linear_acceleration[abs(dfs['cmd'].linear_acceleration > 5)]),
+     len(dfs['cmd'].linear_acceleration), min(dfs['cmd'].linear_acceleration),
+     max(dfs['cmd'].linear_acceleration)
+ ), horizontalalignment='right')
 finish_plot("Acceleration (commanded vs. actual)")
 
 # crosstrack distance from vehicle centroid to center dashed line 

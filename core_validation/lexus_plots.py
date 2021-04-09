@@ -77,7 +77,7 @@ def finish_plot(plot_title):
 
 s3_client = boto3.client('s3')
 bucket = 'preprocessed-carma-core-validation'
-run = "SL_SMPL_v3.5.1_r11"
+run = "LS_SMPL_v3.5.1_r11"
 
 # load necessary topics
 topics = {}
@@ -125,6 +125,13 @@ plt.figure(3)
 plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_acceleration, label = "commanded")
 plt.scatter(dfs['imu'].elapsed_time, dfs['imu']['y.2'], label = "actual")
 plt.ylabel("Acceleration (m/s^2)")
+plt.ylim(-5,5)
+plt.figtext(0.99, 0.01,
+ '{} of {} commands outside plot range; min {:.2f}; max {:.2f}'.format(
+     len(dfs['cmd'].linear_acceleration[abs(dfs['cmd'].linear_acceleration > 5)]),
+     len(dfs['cmd'].linear_acceleration), min(dfs['cmd'].linear_acceleration),
+     max(dfs['cmd'].linear_acceleration)
+ ), horizontalalignment='right')
 finish_plot("Acceleration (commanded vs. actual)")
 
 # crosstrack distance from vehicle centroid to center dashed line 

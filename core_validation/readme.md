@@ -14,3 +14,9 @@ Run the following in the command line before running `lexus_plots.py`
 - `pip install "C:\Users\Public\Documents\packages\GDAL-3.2.2-cp38-cp38-win_amd64.whl"`
 - `pip install "C:\Users\Public\Documents\packages\Fiona-1.8.18-cp38-cp38-win_amd64.whl"`
 - `pip install geopandas`
+
+
+## after running the scripts
+upload plots to the s3 bucket by opening a command line and running
+- `cd C:\Users\public\documents\outplots`
+- `aws s3 sync ./ s3://volpe-core-validation-results/output-plots/`

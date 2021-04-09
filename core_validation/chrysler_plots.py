@@ -73,11 +73,18 @@ def finish_plot(plot_title):
     plt.axvspan(carma_end_time, right, color='lightblue', alpha=0.5)
     plt.legend()
     plt.title(plot_title + "\n" + run)
+    if save_figs:
+        plt.savefig("C:/Users/Public/Documents/outplots/{}/Figure_{}.png".format(run, plt.gcf().number))
+
 
 
 s3_client = boto3.client('s3')
 bucket = 'preprocessed-carma-core-validation'
 run = "P_SPLMS_v3.5.1_r14"
+save_figs = True
+if save_figs:
+    if not os.path.exists("C:/Users/Public/Documents/outplots/{}".format(run)):
+        os.mkdir("C:/Users/Public/Documents/outplots/{}".format(run))
 
 # load necessary topics
 topics = {}
@@ -107,12 +114,12 @@ carma_start_time = dfs['state'].loc[carma_start_ind, 'elapsed_time']
 carma_end_time = dfs['state'].loc[carma_end_ind, 'elapsed_time']
 
 # get state of CARMA system (4=ENGAGED) 
-plt.figure(1)
+plt.figure(0)
 plt.plot(dfs['state'].elapsed_time, dfs['state'].state, label="state")
 finish_plot("CARMA System state")
 
 # speed, commanded vs actual
-plt.figure(2)
+plt.figure(1)
 plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_velocity, label = "commanded")
 plt.scatter(dfs['spd'].elapsed_time, dfs['spd'].vehicle_speed, label = "actual")
 plt.ylabel("Speed (m/s)")
@@ -120,7 +127,7 @@ finish_plot("Speed (commanded vs. actual)")
 
 # longitudinal accel, commanded vs actual
 # vehicle_cmd has two different acceleration command values, but neither seem to make sense
-plt.figure(3)
+plt.figure(2)
 # plt.scatter(df_cmd.elapsed_time, df_cmd.accel, label = "commanded") # this is always all 0s
 plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_acceleration, label = "commanded")
 plt.scatter(dfs['imu'].elapsed_time, dfs['imu']['y.2'], label = "actual")
@@ -145,14 +152,14 @@ centerline = LineString(points_list)
 gdf_pose = gpd.GeoDataFrame(dfs['pose'], geometry=gpd.points_from_xy(dfs['pose'].x,dfs['pose'].y))
 gdf_pose["dist_to_cl"] = gdf_pose.geometry.distance(centerline)
 ## setup figure
-plt.figure(4)
-plt.scatter(gdf_pose.elapsed_time, gdf_pose.dist_to_cl) 
+plt.figure(3)
+plt.scatter(gdf_pose.elapsed_time, gdf_pose.dist_to_cl, label="distance") 
 plt.ylabel("Crosstrack distance to road centerline (m)")
 plt.ylim(0,3.4) # Tim's assumption: lane width is 3.4m = 11ft
 finish_plot("Distance: vehicle centroid to road centerline")
 
 # throttle pct actual vs commanded
-plt.figure(5)
+plt.figure(4)
 plt.scatter(dfs['throttle_cmd'].elapsed_time, dfs['throttle_cmd'].pedal_cmd, label="commanded")
 plt.scatter(dfs['throttle'].elapsed_time, dfs['throttle'].pedal_output, label="actual")
 plt.ylabel("Throttle (percent))")
@@ -160,14 +167,14 @@ finish_plot("Throttle (commanded vs. actual)")
 
 
 # steering angle actual vs commanded
-plt.figure(6)
+plt.figure(5)
 plt.scatter(dfs['steer_cmd'].elapsed_time, dfs['steer_cmd'].angle_cmd, label="commanded")
 plt.scatter(dfs['steer'].elapsed_time, dfs['steer'].steering_wheel_angle, label="actual")
 plt.ylabel("Steering angle (rad)")
 finish_plot("Steering (commanded vs. actual)")
 
 # brake pct actual vs commanded
-plt.figure(7)
+plt.figure(6)
 plt.scatter(dfs['brake_cmd'].elapsed_time, dfs['brake_cmd'].pedal_cmd, label="commanded")
 plt.scatter(dfs['brake'].elapsed_time, dfs['brake'].pedal_output, label="actual")
 plt.ylabel("Braking (percent)")

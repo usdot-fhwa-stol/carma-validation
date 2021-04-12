@@ -109,6 +109,7 @@ dfs = calc_elapsed_time(dfs)
 # set up scatterplot default symbol to be small
 # and figure size (make larger than default)
 plt.rcParams['scatter.marker'] = '.'
+plt.rcParams['lines.markersize'] = 3
 plt.rcParams['figure.figsize'] = [8, 6]
 
 # find longest stretch of CARMA state = 4 during run
@@ -120,22 +121,22 @@ carma_end_time = dfs['state'].loc[carma_end_ind, 'elapsed_time']
 
 # get state of CARMA system (4=ENGAGED) 
 plt.figure(0)
-plt.plot(dfs['state'].elapsed_time, dfs['state'].state, label="state")
-finish_plot("CARMA System state", save_figs)
+plt.scatter(dfs['state'].elapsed_time, dfs['state'].state, label="state")
+finish_plot("CARMA System state", False)
 
 # speed, commanded vs actual
 plt.figure(1)
-plt.plot(dfs['cmd'].elapsed_time, dfs['cmd'].linear_velocity, label = "commanded")
-plt.plot(dfs['spd'].elapsed_time, dfs['spd'].speed, label = "actual")
+plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_velocity, label = "commanded")
+plt.scatter(dfs['spd'].elapsed_time, dfs['spd'].speed, label = "actual")
 plt.ylabel("Speed (m/s)")
 finish_plot("Speed (commanded vs. actual)", save_figs)
 
 # longitudinal accel, commanded vs actual
 # vehicle_cmd has two different acceleration command values, but neither seem to make sense
 plt.figure(2)
-# plt.plot(df_cmd.elapsed_time, df_cmd.accel, label = "commanded") # this is always all 0s
-plt.plot(dfs['cmd'].elapsed_time, dfs['cmd'].linear_acceleration, label = "commanded")
-plt.plot(dfs['imu'].elapsed_time, dfs['imu']['y.2'], label = "actual")
+# plt.scatter(df_cmd.elapsed_time, df_cmd.accel, label = "commanded") # this is always all 0s
+plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'].linear_acceleration, label = "commanded")
+plt.scatter(dfs['imu'].elapsed_time, dfs['imu']['y.2'], label = "actual")
 plt.ylabel("Acceleration (m/s^2)")
 plt.ylim(-5,5)
 plt.figtext(0.99, 0.01,
@@ -158,50 +159,50 @@ gdf_pose = gpd.GeoDataFrame(dfs['pose'], geometry=gpd.points_from_xy(dfs['pose']
 gdf_pose["dist_to_cl"] = gdf_pose.geometry.distance(centerline)
 ## setup figure
 plt.figure(3)
-plt.plot(gdf_pose.elapsed_time, gdf_pose.dist_to_cl, label="distance") 
+plt.scatter(gdf_pose.elapsed_time, gdf_pose.dist_to_cl, label="distance") 
 plt.ylabel("Crosstrack distance to road centerline (m)")
 plt.ylim(0,3.4) # Tim's assumption: lane width is 3.4m = 11ft
 finish_plot("Distance: vehicle centroid to road centerline", save_figs)
 
 # throttle pct actual vs commanded
 plt.figure(4)
-plt.plot(dfs['throttle_cmd'].elapsed_time, dfs['throttle_cmd'].pedal_cmd, label="commanded")
-plt.plot(dfs['throttle'].elapsed_time, dfs['throttle'].pedal_output, label="actual")
+plt.scatter(dfs['throttle_cmd'].elapsed_time, dfs['throttle_cmd'].pedal_cmd, label="commanded")
+plt.scatter(dfs['throttle'].elapsed_time, dfs['throttle'].pedal_output, label="actual")
 plt.ylabel("Throttle (range 0.15 to 0.80)")
 finish_plot("Throttle (commanded vs. actual)", save_figs)
 
 # steering angle actual vs commanded
 plt.figure(5)
-plt.plot(dfs['steer_cmd'].elapsed_time, dfs['steer_cmd'].steering_wheel_angle_cmd, label="commanded")
-plt.plot(dfs['steer'].elapsed_time, dfs['steer'].steering_wheel_angle, label="actual")
+plt.scatter(dfs['steer_cmd'].elapsed_time, dfs['steer_cmd'].steering_wheel_angle_cmd, label="commanded")
+plt.scatter(dfs['steer'].elapsed_time, dfs['steer'].steering_wheel_angle, label="actual")
 plt.ylabel("Steering angle (rad)")
 finish_plot("Steering (commanded vs. actual)", save_figs)
 
 # brake pct actual vs commanded
 plt.figure(6)
-plt.plot(dfs['brake_cmd'].elapsed_time, dfs['brake_cmd'].pedal_cmd, label="commanded")
-plt.plot(dfs['brake'].elapsed_time, dfs['brake'].pedal_output, label="actual")
+plt.scatter(dfs['brake_cmd'].elapsed_time, dfs['brake_cmd'].pedal_cmd, label="commanded")
+plt.scatter(dfs['brake'].elapsed_time, dfs['brake'].pedal_output, label="actual")
 plt.ylabel("Braking (range 0.15 to 0.80)")
 finish_plot("Braking (commanded vs. actual)", save_figs)
-
+"""
 # calculate yaw rate, lateral acceleration, longitundinal acceleration from Novatel IMU
 # TODO: what to graph this against as commanded?
 dfs['corrimudata'].novatel_time = dfs['corrimudata'].secs + dfs['corrimudata'].nsecs/1000000000.0
 imu_diff = dfs['corrimudata']['novatel_time', 'yaw_rate', 'lateral_acceleration', 'longitundinal_acceleration'].diff()
-imu_diff['yaw'] = imu_diff['yaw_rate'] / imu_diff[novatel_time']
-imu_diff['lat_accel'] = imu_diff['lateral_acceleration'] / imu_diff[novatel_time']
-imu_diff['long_accel'] = imu_diff['longitundinal_acceleration'] / imu_diff[novatel_time']
+imu_diff['yaw'] = imu_diff['yaw_rate'] / imu_diff['novatel_time']
+imu_diff['lat_accel'] = imu_diff['lateral_acceleration'] / imu_diff['novatel_time']
+imu_diff['long_accel'] = imu_diff['longitudinal_acceleration'] / imu_diff['novatel_time']
 ## setup figure
 plt.figure(7)
-plt.plot(dfs['corrimudata'].elapsed_time, imu_diff['yaw'], label="derived")
+plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['yaw'], label="derived")
 plt.ylabel("Yaw rate (rad/s)")
 finish_plot("Yaw rate: calculated from Novatel IMU", save_figs)
 plt.figure(8)
-plt.plot(dfs['corrimudata'].elapsed_time, imu_diff['lat_accel'], label="derived")
+plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['lat_accel'], label="derived")
 plt.ylabel("Lateral acceleration (m/s^2)")
 finish_plot("Lateral acceleration: calculated from Novatel IMU", save_figs)
 plt.figure(9)
-plt.plot(dfs['corrimudata'].elapsed_time, imu_diff['long_accel'], label="derived")
+plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['long_accel'], label="derived")
 plt.ylabel("Longitudinal acceleration (m/s^2)")
 finish_plot("Longitudinal acceleration: calculated from Novatel IMU", save_figs)
 
@@ -228,5 +229,5 @@ ax2.tick_params(axis='y', labelcolor=color21)
 
 fig.tight_layout()  # otherwise the right y-label is slightly clipped
 finish_plot("Steering and Acceleration (commanded vs. actual)", save_figs)
-
+"""
 plt.show()

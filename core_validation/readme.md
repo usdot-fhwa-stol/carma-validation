@@ -14,6 +14,7 @@ Run the following in the command line before running `lexus_plots.py`
 - `pip install "C:\Users\Public\Documents\packages\GDAL-3.2.2-cp38-cp38-win_amd64.whl"`
 - `pip install "C:\Users\Public\Documents\packages\Fiona-1.8.18-cp38-cp38-win_amd64.whl"`
 - `pip install geopandas`
+- `pip install mpld3`
 
 
 ## after running the scripts

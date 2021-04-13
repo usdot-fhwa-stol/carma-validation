@@ -6,7 +6,7 @@ import os
 import matplotlib.pyplot as plt
 import geopandas as gpd
 from shapely.geometry import Point, LineString
-
+import mpld3
 
 # helper from misc folder
 def csv_loc_from_name(run_name):
@@ -70,25 +70,36 @@ def finish_plot(plot_title, save_figs):
     plt.xlabel("Time (elapsed seconds)")
     plt.xlim(max(0,carma_start_time-10),carma_end_time+10)
     left, right = plt.xlim()
-    plt.axvspan(left, carma_start_time, color='lightblue', alpha=0.5)
-    plt.axvspan(carma_end_time, right, color='lightblue', alpha=0.5)
-    plt.legend()
-    plt.grid(True)
+    bottom, top = plt.ylim()
+    if save_figs == "html":
+        plt.fill_betweenx([bottom, top], left, carma_start_time, color='lightblue', alpha=0.5)
+        plt.fill_betweenx([bottom, top], carma_end_time, right, color='lightblue', alpha=0.5)
+        plt.ylim(bottom, top)
+    else:
+        plt.axvspan(left, carma_start_time, color='lightblue', alpha=0.5)
+        plt.axvspan(carma_end_time, right, color='lightblue', alpha=0.5)
+    plt.legend(markerscale=3)
+    plt.grid(True, alpha=0.5)
     plt.title(plot_title + "\n" + run)
-    if save_figs:
+    if save_figs == "png":
         plt.savefig("C:/Users/Public/Documents/outplots/{}/Figure_{}.png".format(run, plt.gcf().number))
+    elif save_figs == "html":
+        mpld3.save_html(plt.gcf(), "C:/Users/Public/Documents/outhtml/{}/Figure_{}.html".format(run, plt.gcf().number))
 
 
 s3_client = boto3.client('s3')
 bucket = 'preprocessed-carma-core-validation'
-# run = "LS_SMPL_v3.5.1_r9"
-# run = "F_SPLMS_v3.5.1_r11"
-run = "P_SPLMS_v3.5.1_r8"
+#run = "LS_SMPL_v3.5.1_r11"
+#run = "F_SPLMS_v3.5.1_r11"
+run = "P_SPLMS_v3.5.1_r14"
 veh = run.split("_")[0]
-save_figs = False
-if save_figs:
+save_figs = "html" # options are "png", "html", anythng else is ignored/means don't save
+if save_figs == "png":
     if not os.path.exists("C:/Users/Public/Documents/outplots/{}".format(run)):
         os.mkdir("C:/Users/Public/Documents/outplots/{}".format(run))
+elif save_figs == "html":
+    if not os.path.exists("C:/Users/Public/Documents/outhtml/{}".format(run)):
+        os.mkdir("C:/Users/Public/Documents/outhtml/{}".format(run))
 
 # load necessary topics
 topics = {}
@@ -176,7 +187,10 @@ dfs = calc_elapsed_time(dfs)
 # set up scatterplot default symbol to be small
 # and figure size (make larger than default)
 plt.rcParams['scatter.marker'] = '.'
-plt.rcParams['lines.markersize'] = 3
+if save_figs == "html":
+    plt.rcParams['lines.markersize'] = 1
+else:
+    plt.rcParams['lines.markersize'] = 3
 plt.rcParams['figure.figsize'] = [8, 6]
 
 # find longest stretch of CARMA state = 4 during run
@@ -259,6 +273,7 @@ if veh == "F":
 else:
     plt.ylabel("Braking (percent)")
 finish_plot("Braking (commanded vs. actual)", save_figs)
+
 '''
 dfs['corrimudata']['novatel_time'] = dfs['corrimudata'].secs + dfs['corrimudata'].nsecs/1000000000.0
 # calculate yaw rate, lateral acceleration, longitundinal acceleration, vertical acceleration from Novatel IMU
@@ -346,4 +361,4 @@ ax2.tick_params(axis='y', labelcolor=color21)
 fig.tight_layout()  # otherwise the right y-label is slightly clipped
 finish_plot("Steering and Acceleration (commanded vs. actual)", save_figs)
 '''
-plt.show()
+#plt.show()

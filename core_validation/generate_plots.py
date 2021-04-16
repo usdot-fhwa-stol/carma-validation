@@ -105,14 +105,15 @@ elif save_figs == "html":
 # load necessary topics
 topics = {}
 topics['state'] = "guidance_state.csv"
-topics['cmd'] = "hardware_interface_vehicle_cmd.csv"
+topics['cmd'] = "hardware_interface_arbitrated_speed_commands.csv"
 topics['corrimudata'] = "hardware_interface_corrimudata.csv"
 topics['pose'] = "localization_current_pose.csv"
 
 fields = {}
 fields['state'] = 'state'
-fields['spd_cmd'] = 'linear_velocity'
-fields['accel_cmd'] = 'linear_acceleration'
+fields['spd_cmd'] = 'speed'
+fields['accel_lim'] = 'acceleration_limit'
+fields['decel_lim'] = 'deceleration_limit'
 fields['yaw_nov'] = 'yaw_rate'
 fields['lat_accel_nov'] = 'lateral_acceleration'
 fields['long_accel_nov'] = 'longitudinal_acceleration'
@@ -131,8 +132,8 @@ if veh == "P":
     topics['brake_cmd'] = "hardware_interface_brake_cmd.csv"
 
     fields['spd'] = 'vehicle_speed'
-    fields['lat_accel'] = 'x.2'
-    fields['long_accel'] = 'y.2'
+    fields['long_accel'] = 'x.2'
+    fields['lat_accel'] = 'y.2'
     fields['vert_accel'] = 'z.2'
     fields['steer_cmd'] = 'angle_cmd'
     fields['steer_act'] = 'steering_wheel_angle'
@@ -152,8 +153,8 @@ elif veh == "LS":
     topics['yaw'] = "hardware_interface_pacmod_parsed_tx_yaw_rate_rpt.csv"
 
     fields['spd'] = 'vehicle_speed'
-    fields['lat_accel'] = 'x.2'
-    fields['long_accel'] = 'y.2'
+    fields['long_accel'] = 'x.2'
+    fields['lat_accel'] = 'y.2'
     fields['vert_accel'] = 'z.2'
     fields['steer_cmd'] = 'command'
     fields['steer_act'] = 'output'
@@ -173,8 +174,8 @@ elif veh == "F":
     topics['brake_cmd'] = "hardware_interface_ds_fusion_brake_cmd.csv"
 
     fields['spd'] = 'speed'
-    fields['lat_accel'] = 'x.2'
-    fields['long_accel'] = 'y.2'
+    fields['long_accel'] = 'x.2'
+    fields['lat_accel'] = 'y.2'
     fields['vert_accel'] = 'z.2'
     fields['steer_cmd'] = 'steering_wheel_angle_cmd'
     fields['steer_act'] = 'steering_wheel_angle'
@@ -218,23 +219,21 @@ plt.scatter(dfs['spd'].elapsed_time, dfs['spd'][fields['spd']], label = "actual"
 plt.ylabel("Speed (m/s)")
 finish_plot("Speed (commanded vs. actual)", save_figs)
 
-# longitudinal accel, commanded vs actual
-# vehicle_cmd has two different acceleration command values, but neither seem to make sense
-# TODO: vehicle_cmd seems to only contain a "linear acceleration" command - how does this relate to accel x, y, z?
+# longitudinal accel, commanded limits vs actual
 plt.figure(2)
-# plt.scatter(df_cmd.elapsed_time, df_cmd.accel, label = "commanded") # this is always all 0s
-plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'][fields['accel_cmd']], label = "commanded")
+plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'][fields['accel_lim']], label = "accel limit")
+plt.scatter(dfs['cmd'].elapsed_time, -1 * dfs['cmd'][fields['decel_lim']], label = "decel limit")
 plt.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['long_accel']], label = "actual")
 plt.ylabel("Acceleration (m/s^2)")
 plt.ylim(-5,5)
 plt.figtext(0.99, 0.01,
- '{} of {} commands outside plot range; min {:.2f}; max {:.2f}'.format(
-     len(dfs['cmd'].loc[abs(dfs['cmd'][fields['accel_cmd']]) > 5, fields['accel_cmd']]),
-     len(dfs['cmd'][fields['accel_cmd']]),
-     min(dfs['cmd'][fields['accel_cmd']]),
-     max(dfs['cmd'][fields['accel_cmd']])
+ '{} of {} actuals outside plot range; min {:.2f}; max {:.2f}'.format(
+     len(dfs['imu'].loc[abs(dfs['imu'][fields['long_accel']]) > 5, fields['long_accel']]),
+     len(dfs['imu'][fields['long_accel']]),
+     min(dfs['imu'][fields['long_accel']]),
+     max(dfs['imu'][fields['long_accel']])
  ), horizontalalignment='right')
-finish_plot("Acceleration (commanded vs. actual)", save_figs)
+finish_plot("Acceleration (commanded limits vs. actual)", save_figs)
 
 # crosstrack distance from vehicle centroid to center dashed line 
 df_cl = pd.read_csv("misc/sp_loop_centerline.csv")
@@ -289,7 +288,6 @@ imu_diff['yaw_rate'] = dfs['corrimudata'][fields['yaw_nov']] / imu_diff['novatel
 imu_diff['lat_accel'] = dfs['corrimudata'][fields['lat_accel_nov']] / imu_diff['novatel_time']
 imu_diff['long_accel'] = dfs['corrimudata'][fields['long_accel_nov']] / imu_diff['novatel_time']
 imu_diff['vert_accel'] = dfs['corrimudata'][fields['vert_accel_nov']] / imu_diff['novatel_time']
-imu_diff['lin_accel'] = (imu_diff['lat_accel'] + imu_diff['long_accel'] + imu_diff['vert_accel']) * np.sqrt(3.0) / 3.0
 
 ## setup figure
 # Ford, Pacifica - yaw rate
@@ -349,25 +347,9 @@ plt.figtext(0.99, 0.01,
      np.nanmax(imu_diff['vert_accel'])
  ), horizontalalignment='right')
 finish_plot("Vertical acceleration (novatel vs. imu)", save_figs)
-
-# linear accel, commanded vs actual (novatel)
-# vehicle_cmd has two different acceleration command values, but neither seem to make sense
-plt.figure(11)
-# plt.scatter(df_cmd.elapsed_time, df_cmd.accel, label = "commanded") # this is always all 0s
-plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'][fields['accel_cmd']], label = "commanded")
-plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['lin_accel'], label = "actual")
-plt.ylabel("Acceleration (m/s^2)")
-plt.ylim(-5,5)
-plt.figtext(0.99, 0.01,
- '{} of {} commands outside plot range; min {:.2f}; max {:.2f}'.format(
-     len(dfs['cmd'].loc[abs(dfs['cmd'][fields['accel_cmd']]) > 5, fields['accel_cmd']]),
-     len(dfs['cmd'][fields['accel_cmd']]),
-     min(dfs['cmd'][fields['accel_cmd']]),
-     max(dfs['cmd'][fields['accel_cmd']])
- ), horizontalalignment='right')
-finish_plot("Acceleration (commanded vs. actual)", save_figs)
 '''
-fig = plt.figure(12)
+
+fig = plt.figure(11)
 ax1 = fig.add_subplot()
 ax1.set_xlabel('Time (elapsed seconds)')
 plt.xlim(max(0,carma_start_time-10),carma_end_time+10)
@@ -388,17 +370,16 @@ ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
 color21 = 'tab:blue'
 color22 = 'tab:green'
-ax2.set_ylabel('Speed (m/s)', color=color21)  # we already handled the x-label with ax1
-ax2.scatter(dfs['cmd'].elapsed_time, dfs['cmd'][fields['spd_cmd']], label = "speed commanded", color=color21)
-ax2.scatter(dfs['spd'].elapsed_time, dfs['spd'][fields['spd']], label = "speed actual", color=color22)
+ax2.set_ylabel('Lateral acceleration (m/s^2)', color=color21)  # we already handled the x-label with ax1
+ax2.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['lat_accel']], label = "lat accel actual", color=color21)
 # plt.ylim(-5,5) # reasonable acceleration limits
 ax2.tick_params(axis='y', labelcolor=color21)
 
 handles, labels = [(a+b) for a, b in zip(ax1.get_legend_handles_labels(), ax2.get_legend_handles_labels())]
 plt.legend(handles, labels, markerscale=3)
 plt.grid(True, alpha=0.5)
-plt.title("Steering and Speed (commanded vs. actual)" + "\n" + run)
+plt.title("Steering and Lateral acceleration (commanded vs. actual)" + "\n" + run)
 plt.tight_layout()  # otherwise the right y-label is slightly clipped
-# finish_plot("Steering and Speed (commanded vs. actual)", save_figs)
+# finish_plot("Steering and Lateral acceleration (commanded vs. actual)", save_figs)
 
 plt.show()

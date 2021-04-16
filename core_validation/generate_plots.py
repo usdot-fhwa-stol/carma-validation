@@ -9,7 +9,7 @@ from shapely.geometry import Point, LineString
 import mpld3
 
 # helper from misc folder
-def csv_loc_from_name(run_name):
+def csv_loc_from_run(run_name, run_date = "20210318"):
     # TODO: generalize or pass as input
     csv_loc = "csvfiles/Core_Validation_Testing/Facility_Summit_Point/"
     
@@ -23,15 +23,13 @@ def csv_loc_from_name(run_name):
     elif veh == "F":
         csv_loc = csv_loc + "Vehicle_White_Ford/"
     
-    # assume with more runs will need to stop hardcoding dates
-    # TODO: generalize or pass as input
-    csv_loc = csv_loc + "20210318/{}_down-selected/".format(run_no)
+    csv_loc = csv_loc + "{}/{}_down-selected/".format(run_date, run_no)
     return csv_loc
 
 
 # cleaning up loading the topics
 def load_topic(bucket, run, csv_name):
-    file_name = csv_loc_from_name(run) + csv_name
+    file_name = csv_loc_from_run(run) + csv_name
     obj = s3_client.get_object(Bucket=bucket, Key=file_name)
     df = pd.read_csv(obj['Body'])
     return df
@@ -66,13 +64,13 @@ def rle(inarray):
         return (z, p, ia[i])
 
 
-def finish_plot(plot_title, save_figs):
+def finish_plot(plot_title, save_fig):
     plt.xlabel("Time (elapsed seconds)")
     # TODO: should not reference outside variables without passing them in
     plt.xlim(max(0,carma_start_time-10),carma_end_time+10)
     left, right = plt.xlim()
     bottom, top = plt.ylim()
-    if save_figs == "html":
+    if save_fig == "html":
         plt.fill_betweenx([bottom, top], left, carma_start_time, color='lightblue', alpha=0.5)
         plt.fill_betweenx([bottom, top], carma_end_time, right, color='lightblue', alpha=0.5)
         plt.ylim(bottom, top)
@@ -82,17 +80,17 @@ def finish_plot(plot_title, save_figs):
     plt.legend(markerscale=3)
     plt.grid(True, alpha=0.5)
     plt.title(plot_title + "\n" + run)
-    if save_figs == "png":
+    if save_fig == "png":
         plt.savefig("C:/Users/Public/Documents/outplots/{}/Figure_{}.png".format(run, plt.gcf().number))
-    elif save_figs == "html":
+    elif save_fig == "html":
         mpld3.save_html(plt.gcf(), "C:/Users/Public/Documents/outhtml/{}/Figure_{}.html".format(run, plt.gcf().number))
 
 
 s3_client = boto3.client('s3')
 bucket = 'preprocessed-carma-core-validation'
-#run = "LS_SMPL_v3.5.1_r11"
+run = "LS_SMPL_v3.5.1_r11"
 #run = "F_SPLMS_v3.5.1_r11"
-run = "P_SPLMS_v3.5.1_r14"
+#run = "P_SPLMS_v3.5.1_r14"
 veh = run.split("_")[0]
 save_figs = "false" # options are "png", "html", anythng else is ignored/means don't save
 if save_figs == "png":
@@ -108,22 +106,24 @@ topics['state'] = "guidance_state.csv"
 topics['cmd'] = "hardware_interface_arbitrated_speed_commands.csv"
 topics['corrimudata'] = "hardware_interface_corrimudata.csv"
 topics['pose'] = "localization_current_pose.csv"
+topics['vel_accel'] = "hardware_interface_velocity_accel_cov.csv"
 
 fields = {}
 fields['state'] = 'state'
 fields['spd_cmd'] = 'speed'
 fields['accel_lim'] = 'acceleration_limit'
 fields['decel_lim'] = 'deceleration_limit'
-fields['yaw_nov'] = 'yaw_rate'
+fields['yaw_rate_nov'] = 'yaw_rate'
 fields['lat_accel_nov'] = 'lateral_acceleration'
 fields['long_accel_nov'] = 'longitudinal_acceleration'
 fields['vert_accel_nov'] = 'vertical_acceleration'
 fields['pose_x'] = 'x'
 fields['pose_y'] = 'y'
+fields['accel'] = 'accleration' #yes this is a typo but it's how it shows in the msg spec
 
 if veh == "P":
     topics['spd'] = "hardware_interface_misc_report.csv"
-    topics['imu'] = "hardware_interface_imu_data_raw.csv"
+    #topics['imu'] = "hardware_interface_imu_data_raw.csv"
     topics['steer'] = "hardware_interface_steering_report.csv"
     topics['steer_cmd'] = "hardware_interface_steering_cmd.csv"
     topics['throttle'] = "hardware_interface_accelerator_pedal_report.csv"
@@ -132,9 +132,9 @@ if veh == "P":
     topics['brake_cmd'] = "hardware_interface_brake_cmd.csv"
 
     fields['spd'] = 'vehicle_speed'
-    fields['long_accel'] = 'x.2'
-    fields['lat_accel'] = 'y.2'
-    fields['vert_accel'] = 'z.2'
+    #fields['long_accel'] = 'x.2'
+    #fields['lat_accel'] = 'y.2'
+    #fields['vert_accel'] = 'z.2'
     fields['steer_cmd'] = 'angle_cmd'
     fields['steer_act'] = 'steering_wheel_angle'
     fields['throttle_cmd'] = 'pedal_cmd'
@@ -143,29 +143,29 @@ if veh == "P":
     fields['brake_act'] = 'pedal_output'
 elif veh == "LS":
     topics['spd'] = "hardware_interface_pacmod_parsed_tx_vehicle_speed_rpt.csv"
-    topics['imu'] = "hardware_interface_imu_raw.csv"
+    #topics['imu'] = "hardware_interface_imu_raw.csv"
     topics['steer'] = "hardware_interface_pacmod_parsed_tx_steer_rpt.csv"
     topics['steer_cmd'] = "hardware_interface_pacmod_as_rx_steer_cmd.csv"
     topics['throttle'] = "hardware_interface_pacmod_parsed_tx_accel_rpt.csv"
     topics['throttle_cmd'] = "hardware_interface_pacmod_as_rx_accel_cmd.csv"
     topics['brake'] = "hardware_interface_pacmod_parsed_tx_brake_rpt.csv"
     topics['brake_cmd'] = "hardware_interface_pacmod_as_rx_brake_cmd.csv"
-    topics['yaw'] = "hardware_interface_pacmod_parsed_tx_yaw_rate_rpt.csv"
+    topics['yaw_rate'] = "hardware_interface_pacmod_parsed_tx_yaw_rate_rpt.csv"
 
     fields['spd'] = 'vehicle_speed'
-    fields['long_accel'] = 'x.2'
-    fields['lat_accel'] = 'y.2'
-    fields['vert_accel'] = 'z.2'
+    #fields['long_accel'] = 'x.2'
+    #fields['lat_accel'] = 'y.2'
+    #fields['vert_accel'] = 'z.2'
     fields['steer_cmd'] = 'command'
     fields['steer_act'] = 'output'
     fields['throttle_cmd'] = 'command'
     fields['throttle_act'] = 'output'
     fields['brake_cmd'] = 'command'
     fields['brake_act'] = 'output'
-    fields['yaw_act'] = 'yaw_rate'
+    fields['yaw_rate_act'] = 'yaw_rate'
 elif veh == "F":
     topics['spd'] = "hardware_interface_ds_fusion_steering_report.csv"
-    topics['imu'] = "hardware_interface_ds_fusion_imu_data_raw.csv"
+    #topics['imu'] = "hardware_interface_ds_fusion_imu_data_raw.csv"
     topics['steer'] = "hardware_interface_ds_fusion_steering_report.csv"
     topics['steer_cmd'] = "hardware_interface_ds_fusion_steering_cmd.csv"
     topics['throttle'] = "hardware_interface_ds_fusion_throttle_report.csv"
@@ -174,9 +174,9 @@ elif veh == "F":
     topics['brake_cmd'] = "hardware_interface_ds_fusion_brake_cmd.csv"
 
     fields['spd'] = 'speed'
-    fields['long_accel'] = 'x.2'
-    fields['lat_accel'] = 'y.2'
-    fields['vert_accel'] = 'z.2'
+    #fields['long_accel'] = 'x.2'
+    #fields['lat_accel'] = 'y.2'
+    #fields['vert_accel'] = 'z.2'
     fields['steer_cmd'] = 'steering_wheel_angle_cmd'
     fields['steer_act'] = 'steering_wheel_angle'
     fields['throttle_cmd'] = 'pedal_cmd'
@@ -206,7 +206,7 @@ carma_start_ind = p[z == max(z[ia])][0]
 carma_end_ind = carma_start_ind + z[z == max(z[ia])][0] - 1
 carma_start_time = dfs['state'].loc[carma_start_ind, 'elapsed_time']
 carma_end_time = dfs['state'].loc[carma_end_ind, 'elapsed_time']
-'''
+
 # get state of CARMA system (4=ENGAGED) 
 plt.figure(0)
 plt.scatter(dfs['state'].elapsed_time, dfs['state'][fields['state']], label="state")
@@ -223,18 +223,18 @@ finish_plot("Speed (commanded vs. actual)", save_figs)
 plt.figure(2)
 plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'][fields['accel_lim']], label = "accel limit")
 plt.scatter(dfs['cmd'].elapsed_time, -1 * dfs['cmd'][fields['decel_lim']], label = "decel limit")
-plt.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['long_accel']], label = "actual")
+plt.scatter(dfs['vel_accel'].elapsed_time, dfs['vel_accel'][fields['accel']], label = fields['accel'])
 plt.ylabel("Acceleration (m/s^2)")
-plt.ylim(-5,5)
-plt.figtext(0.99, 0.01,
- '{} of {} actuals outside plot range; min {:.2f}; max {:.2f}'.format(
-     len(dfs['imu'].loc[abs(dfs['imu'][fields['long_accel']]) > 5, fields['long_accel']]),
-     len(dfs['imu'][fields['long_accel']]),
-     min(dfs['imu'][fields['long_accel']]),
-     max(dfs['imu'][fields['long_accel']])
- ), horizontalalignment='right')
-finish_plot("Acceleration (commanded limits vs. actual)", save_figs)
-
+# plt.ylim(-5,5)
+# plt.figtext(0.99, 0.01,
+#  '{} of {} actuals outside plot range; min {:.2f}; max {:.2f}'.format(
+#      len(dfs['imu'].loc[abs(dfs['imu'][fields['long_accel']]) > 5, fields['long_accel']]),
+#      len(dfs['imu'][fields['long_accel']]),
+#      min(dfs['imu'][fields['long_accel']]),
+#      max(dfs['imu'][fields['long_accel']])
+#  ), horizontalalignment='right')
+finish_plot("Longitudinal acceleration (commanded limits vs. actual)", save_figs)
+'''
 # crosstrack distance from vehicle centroid to center dashed line 
 df_cl = pd.read_csv("misc/sp_loop_centerline.csv")
 df_cl = df_cl.set_index(df_cl.way_id * 10000 + df_cl.way_pos) #ensure correct ordering
@@ -278,44 +278,45 @@ if veh == "F":
 else:
     plt.ylabel("Braking (percent)")
 finish_plot("Braking (commanded vs. actual)", save_figs)
-'''
 
-'''
+
+
 dfs['corrimudata']['novatel_time'] = dfs['corrimudata'].secs + dfs['corrimudata'].nsecs/1000000000.0
 # calculate yaw rate, lateral acceleration, longitundinal acceleration, vertical acceleration from Novatel IMU
 imu_diff = dfs['corrimudata']['novatel_time'].diff().to_frame()
-imu_diff['yaw_rate'] = dfs['corrimudata'][fields['yaw_nov']] / imu_diff['novatel_time']
+imu_diff['yaw_rate'] = dfs['corrimudata'][fields['yaw_rate_nov']] / imu_diff['novatel_time']
 imu_diff['lat_accel'] = dfs['corrimudata'][fields['lat_accel_nov']] / imu_diff['novatel_time']
 imu_diff['long_accel'] = dfs['corrimudata'][fields['long_accel_nov']] / imu_diff['novatel_time']
 imu_diff['vert_accel'] = dfs['corrimudata'][fields['vert_accel_nov']] / imu_diff['novatel_time']
 
 ## setup figure
 # Ford, Pacifica - yaw rate
-plt.figure(7)
-plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['yaw_rate'], label="derived")
-plt.ylabel("Yaw rate (rad/s)")
-finish_plot("Yaw rate: calculated from Novatel IMU", save_figs)
-
-# Lexus - yaw rate, novatel vs pacmod
-plt.figure(7)
-plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['yaw_rate'], label="novatel")
-plt.scatter(dfs['yaw'].elapsed_time, dfs['yaw'][fields['yaw_act']], label = "pacmod")
-plt.ylabel("Yaw rate (rad/s)")
-finish_plot("Yaw rate (novatel vs. imu)", save_figs)
+if veh != "SL":
+    plt.figure(7)
+    plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['yaw_rate'], label="derived")
+    plt.ylabel("Yaw rate (rad/s)")
+    finish_plot("Yaw rate: calculated from Novatel IMU", save_figs)
+else:
+    # Lexus - yaw rate, novatel vs pacmod
+    plt.figure(7)
+    plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['yaw_rate'], label="novatel")
+    plt.scatter(dfs['yaw_rate'].elapsed_time, dfs['yaw_rate'][fields['yaw_rate_act']], label = "pacmod")
+    plt.ylabel("Yaw rate (rad/s)")
+    finish_plot("Yaw rate (novatel vs. imu)", save_figs)
 
 # lateral accel, novatel vs imu
 plt.figure(8)
 plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['lat_accel'], label = "novatel")
 plt.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['lat_accel']], label = "imu")
 plt.ylabel("Lateral acceleration (m/s^2)")
-plt.ylim(-5,5)
-plt.figtext(0.99, 0.01,
- '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
-     len(imu_diff.loc[abs(imu_diff['lat_accel']) > 5, 'lat_accel']),
-     len(imu_diff['lat_accel']),
-     np.nanmin(imu_diff['lat_accel']),
-     np.nanmax(imu_diff['lat_accel'])
- ), horizontalalignment='right')
+# plt.ylim(-5,5)
+# plt.figtext(0.99, 0.01,
+#  '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
+#      len(imu_diff.loc[abs(imu_diff['lat_accel']) > 5, 'lat_accel']),
+#      len(imu_diff['lat_accel']),
+#      np.nanmin(imu_diff['lat_accel']),
+#      np.nanmax(imu_diff['lat_accel'])
+#  ), horizontalalignment='right')
 finish_plot("Lateral acceleration (novatel vs. imu)", save_figs)
 
 # longitudinal accel, novatel vs imu
@@ -323,14 +324,14 @@ plt.figure(9)
 plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['long_accel'], label = "novatel")
 plt.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['long_accel']], label = "imu")
 plt.ylabel("Longitudinal acceleration (m/s^2)")
-plt.ylim(-5,5)
-plt.figtext(0.99, 0.01,
- '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
-     len(imu_diff.loc[abs(imu_diff['long_accel']) > 5, 'long_accel']),
-     len(imu_diff['long_accel']),
-     np.nanmin(imu_diff['long_accel']),
-     np.nanmax(imu_diff['long_accel'])
- ), horizontalalignment='right')
+# plt.ylim(-5,5)
+# plt.figtext(0.99, 0.01,
+#  '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
+#      len(imu_diff.loc[abs(imu_diff['long_accel']) > 5, 'long_accel']),
+#      len(imu_diff['long_accel']),
+#      np.nanmin(imu_diff['long_accel']),
+#      np.nanmax(imu_diff['long_accel'])
+#  ), horizontalalignment='right')
 finish_plot("Longitudinal acceleration (novatel vs. imu)", save_figs)
 
 # vertical accel, novatel vs imu
@@ -338,16 +339,16 @@ plt.figure(10)
 plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['vert_accel'], label = "novatel")
 plt.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['vert_accel']], label = "imu")
 plt.ylabel("Vertical acceleration (m/s^2)")
-plt.ylim(-5,5)
-plt.figtext(0.99, 0.01,
- '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
-     len(imu_diff.loc[abs(imu_diff['vert_accel']) > 5, 'vert_accel']),
-     len(imu_diff['vert_accel']),
-     np.nanmin(imu_diff['vert_accel']),
-     np.nanmax(imu_diff['vert_accel'])
- ), horizontalalignment='right')
+# plt.ylim(-5,5)
+# plt.figtext(0.99, 0.01,
+#  '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
+#      len(imu_diff.loc[abs(imu_diff['vert_accel']) > 5, 'vert_accel']),
+#      len(imu_diff['vert_accel']),
+#      np.nanmin(imu_diff['vert_accel']),
+#      np.nanmax(imu_diff['vert_accel'])
+#  ), horizontalalignment='right')
 finish_plot("Vertical acceleration (novatel vs. imu)", save_figs)
-'''
+
 
 fig = plt.figure(11)
 ax1 = fig.add_subplot()
@@ -381,5 +382,5 @@ plt.grid(True, alpha=0.5)
 plt.title("Steering and Lateral acceleration (commanded vs. actual)" + "\n" + run)
 plt.tight_layout()  # otherwise the right y-label is slightly clipped
 # finish_plot("Steering and Lateral acceleration (commanded vs. actual)", save_figs)
-
+'''
 plt.show()

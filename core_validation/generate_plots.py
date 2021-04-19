@@ -287,7 +287,7 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], sa
 
 
 
-generate_plots_for_run(plots=[2])
+generate_plots_for_run()
 plt.show()
 
 '''

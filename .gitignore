@@ -1,2 +1,3 @@
 .vscode
 core_validation/*.ipynb
+core_validation/*.csv

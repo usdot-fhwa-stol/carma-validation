@@ -2,18 +2,20 @@
 # for a cleaner file than the default csv extraction
 
 import rosbag
-import json
 import pandas as pd 
 
 # downloaded bag locally first
+# trying to use the bag in D:/ was unsuccessful, just started eating up memory
 bag = rosbag.Bag("C:/Users/ian.berg/Documents/from-s3-temp/LS_SPLMS_v3.5.3_r18_down-selected.bag")
 
 obj_cols = ["rosbagTimestamp","object_id","pos_x","pos_y","pos_z","orient_x","orient_y","orient_z","orient_w","speed","size_x","size_y","size_z","confidence","type","cv_type","lanelet_id","cross_track","down_track"]
 df_all_obj = pd.DataFrame(columns = obj_cols)
 for topic, msg, t in bag.read_messages(topics="/environment/roadway_objects"):
+    # the spec for /environment/roadway_objects is cav_mgs/RoadwayObstacleList
+    # https://github.com/usdot-fhwa-stol/carma-msgs/blob/develop/cav_msgs/msg/RoadwayObstacleList.msg
+    # used this and the specs of the messages nested within to define the columns
     df_msg = pd.DataFrame(columns= obj_cols)
     for item in msg.roadway_obstacles:
-        count = count + 1
         obj = {}
         obj["rosbagTimestamp"] = int(str(t))
         obj["object_id"] = item.object.id

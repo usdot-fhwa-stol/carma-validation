@@ -40,6 +40,6 @@ You will need to choose your parameters for `generate_plots_for_run`.
 if you set `save_figs="png"`, you can 
 upload those plots to the s3 bucket by opening a command line and running
 ```
-cd C:\Users\public\documents\outplots`
+cd C:\Users\public\documents\outplots
 aws s3 sync ./ s3://volpe-core-validation-results/output-plots/
 ```

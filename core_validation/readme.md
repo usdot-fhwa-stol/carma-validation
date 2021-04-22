@@ -19,7 +19,7 @@ pip install mpld3
 ```
 
 ## running the script
-To run the file scroll all the way to these lines -- (the final two lines, except for the commented-out bits at the end.)
+To run the file scroll all the way to these lines.
 ```
 generate_plots_for_run()
 plt.show()
@@ -34,6 +34,7 @@ You will need to choose your parameters for `generate_plots_for_run`.
 	- Figure 4. throttle pct actual vs commanded
 	- Figure 5. steering angle actual vs commanded
 	- Figure 6. brake pct actual vs commanded
+- plot_type. Options are `scatter` or `line`. Scatter plots have plain language labels in the legend; line plots use topic and field names.
 - save_figs. Options are `png` or `html`, anything else (including omitting it) means that plots are not saved. The save locations are hardcoded in for now, in C:\Users\Public\Documents.
 
 ## after running the script

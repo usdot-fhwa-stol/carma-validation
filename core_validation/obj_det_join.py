@@ -7,10 +7,11 @@ import numpy as np
 import pandas as pd
 import os
 import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
 import geopandas as gpd
 from shapely.geometry import Point, LineString
 import mpld3
-
+import random
 
 # %%
 # cleaning up loading the topics
@@ -111,9 +112,15 @@ df_remaining[df_remaining["lanelet_id"]==df_remaining["sv_lanelet_ahead"]]
 plt.rcParams['scatter.marker'] = '.'
 plt.rcParams['figure.figsize'] = [8, 6]
 plt.rcParams['lines.markersize'] = 3
+
+# assign random color by object id
+cs = {k: (random.random(), random.random(), random.random()) for k in df_easy["object_id"].drop_duplicates()}
+cmap = ListedColormap(cs.values())
+
 plt.figure(3)
-plt.scatter(df_easy.elapsed_time, df_easy.dt_diff)
-finish_plot("Distance to nearest object ahead in same lanelet (centroid to centroid)") #, "png")
+plt.scatter(df_easy.elapsed_time, df_easy.dt_diff, c=df_easy.object_id, cmap=cmap)
+plt.ylabel("Difference in downtrack distance (m)")
+finish_plot("Downtrack distance to nearest object ahead in same lanelet (centroid to centroid)", "png")
 
 
 # %%

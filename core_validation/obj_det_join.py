@@ -118,12 +118,23 @@ cs = {k: (random.random(), random.random(), random.random()) for k in df_easy["o
 cmap = ListedColormap(cs.values())
 
 plt.figure(3)
-plt.scatter(df_easy.elapsed_time, df_easy.dt_diff, c=df_easy.object_id, cmap=cmap)
+plt.scatter(easy_results.elapsed_time, easy_results.dt_diff, c=easy_results.object_id, cmap=cmap)
 plt.ylabel("Difference in downtrack distance (m)")
 finish_plot("Downtrack distance to nearest object ahead in same lanelet (centroid to centroid)", "png")
 
 
 # %%
+import math
+easy_results = easy_results.reset_index(drop=True)
+easy_results["dist_act"]= (
+    (easy_results["pos_x"]-easy_results["sv_x"])**2 +
+    (easy_results["pos_y"]-easy_results['sv_y'])**2 +
+    (easy_results['pos_z']-easy_results['sv_z'])**2)**0.5
+
+easy_results["dif_dists"] = easy_results["dist_act"] - easy_results["dt_diff"]
+# %%
+plt.figure(4)
+plt.scatter(easy_results.elapsed_time, easy_results.dif_dists)
+
 plt.show()
-
-
+# %%

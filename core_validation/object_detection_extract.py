@@ -4,7 +4,7 @@
 import rosbag
 import pandas as pd 
 
-# downloaded bag locally first
+# downloaded bag locally (to the EC2 instance) first
 # trying to use the bag in D:/ was unsuccessful, just started eating up memory
 bag = rosbag.Bag("C:/Users/ian.berg/Documents/from-s3-temp/LS_SPLMS_v3.5.3_r18_down-selected.bag")
 
@@ -40,4 +40,4 @@ for topic, msg, t in bag.read_messages(topics="/environment/roadway_objects"):
     df_msg = df_msg.drop_duplicates() # in sample data, each message contains many duplicate copies of the same object
     df_all_obj = df_all_obj.append(df_msg, ignore_index = True)
 
-df_all_obj.to_csv("environment_roadway_objects.csv")
+df_all_obj.to_csv("environment_roadway_objects.csv", index=False)

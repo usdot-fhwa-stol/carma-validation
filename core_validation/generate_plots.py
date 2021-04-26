@@ -9,21 +9,30 @@ from shapely.geometry import Point, LineString
 import mpld3
 
 # helper from misc folder
-def csv_loc_from_run(run_name, run_date = "20210318"):
+def csv_loc_from_run(run_name):
     # TODO: generalize or pass as input
     csv_loc = "csvfiles/Core_Validation_Testing/Facility_Summit_Point/"
     
     veh = run_name.split("_")[0]
     run_no = run_name.split("_")[-1]
+    run_date = "20210318"
 
     if veh == "P":
         csv_loc = csv_loc + "Vehicle_Black_Pacifica/"
+        if int(run_no[1:]) >= 15:
+            run_date = "20210413"
     elif veh == "LS":
         csv_loc = csv_loc + "Vehicle_Silver_Lexus/"
+        if int(run_no[1:]) >= 12:
+            run_date = "20210415"
     elif veh == "F":
         csv_loc = csv_loc + "Vehicle_White_Ford/"
-    
-    csv_loc = csv_loc + "{}/{}_down-selected/".format(run_date, run_no)
+        if int(run_no[1:]) >= 13:
+            run_date = "20210415"
+    if run_date == "20210318":
+        csv_loc = csv_loc + "{}/{}_down-selected/".format(run_date, run_no)
+    else:
+        csv_loc = csv_loc + "{}/{}_down-selected/".format(run_date, run_name)
     return csv_loc
 
 
@@ -72,11 +81,12 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
 # save figs options are "png", "html"; anything else is equiv to don't save
 
 
-    def finish_plot(plot_title, save_fig):
+    def finish_plot(plot_title, save_fig, trim_plot=True):
         plt.xlabel("Time (elapsed seconds)")
         # TODO: should not reference outside variables without passing them in
         # I think nesting this in a "generate plots" fn resolves this?
-        plt.xlim(carma_start_time-10,carma_end_time+10)
+        if trim_plot:
+            plt.xlim(carma_start_time-10,carma_end_time+10)
         left, right = plt.xlim()
         bottom, top = plt.ylim()
         if save_fig == "html":
@@ -103,10 +113,10 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
     veh = run.split("_")[0]
     if save_figs == "png":
         if not os.path.exists("C:/Users/Public/Documents/outplots/{}/{}".format(run, plot_type)):
-            os.mkdir("C:/Users/Public/Documents/outplots/{}/{}".format(run, plot_type))
+            os.makedirs("C:/Users/Public/Documents/outplots/{}/{}".format(run, plot_type))
     elif save_figs == "html":
         if not os.path.exists("C:/Users/Public/Documents/outhtml/{}/{}".format(run, plot_type)):
-            os.mkdir("C:/Users/Public/Documents/outhtml/{}/{}".format(run, plot_type))
+            os.makedirs("C:/Users/Public/Documents/outhtml/{}/{}".format(run, plot_type))
 
     # load necessary topics
     topics = {}
@@ -210,187 +220,128 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
 
     # find longest stretch of CARMA state = 4 during run
     z, p, ia = rle(dfs['state'].state == 4)
-    carma_start_ind = p[z == max(z[ia])][0]
-    carma_end_ind = carma_start_ind + z[z == max(z[ia])][0] - 1
-    carma_start_time = dfs['state'].loc[carma_start_ind, 'elapsed_time']
-    carma_end_time = dfs['state'].loc[carma_end_ind, 'elapsed_time']
+    carma_never_engaged = False
+    try:
+        carma_start_ind = p[z == max(z[ia])][0]
+        carma_end_ind = carma_start_ind + z[z == max(z[ia])][0] - 1
+        carma_start_time = dfs['state'].loc[carma_start_ind, 'elapsed_time']
+        carma_end_time = dfs['state'].loc[carma_end_ind, 'elapsed_time']
+    except ValueError:
+        carma_start_time = min(dfs['state'].elapsed_time)
+        carma_end_time = max(dfs['state'].elapsed_time)
+        carma_never_engaged = True
 
-    if plot_type == "scatter":
+    if carma_never_engaged:
+        plt.rcParams['axes.facecolor'] = 'lightblue'
+
+    # get state of CARMA system (4=ENGAGED) 
         # get state of CARMA system (4=ENGAGED) 
-        #always generate for reference
-        plt.figure(0)
+    # get state of CARMA system (4=ENGAGED) 
+    #always generate for reference
+    plt.figure(0)
+    if plot_type == "scatter":
         plt.scatter(dfs['state'].elapsed_time, dfs['state'][fields['state']], label="state")
-        finish_plot("CARMA System state", False)
+    elif plot_type == "line":
+        plt.plot(dfs['state'].elapsed_time, dfs['state'][fields['state']], label="state")
+    finish_plot("CARMA System state", False)
 
-        # speed, commanded vs actual
-        if 1 in plots:
-            plt.figure(1)
+    # speed, commanded vs actual
+    if 1 in plots:
+        plt.figure(1)
+        if plot_type == "scatter":
             plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'][fields['spd_cmd']], label = "commanded")
             plt.scatter(dfs['spd'].elapsed_time, dfs['spd'][fields['spd']], label = "actual")
-            plt.ylabel("Speed (m/s)")
-            finish_plot("Speed (commanded vs. actual)", save_figs)
+        elif plot_type == "line":
+            plt.plot(dfs['cmd'].elapsed_time, dfs['cmd'][fields['spd_cmd']], label = "{}/{}".format(topics['cmd'], fields['spd_cmd']))
+            plt.plot(dfs['spd'].elapsed_time, dfs['spd'][fields['spd']], label = "{}/{}".format(topics['spd'], fields['spd']))
+        plt.ylabel("Speed (m/s)")
+        finish_plot("Speed (commanded vs. actual)", save_figs)
 
-        # linear accel, commanded limits vs actual
-        if 2 in plots:
-            plt.figure(2)
+    # linear accel, commanded limits vs actual
+    if 2 in plots:
+        plt.figure(2)
+        if plot_type == "scatter":
             plt.scatter(dfs['cmd'].elapsed_time, dfs['cmd'][fields['accel_lim']], label = "accel limit")
             plt.scatter(dfs['cmd'].elapsed_time, -1 * dfs['cmd'][fields['decel_lim']], label = "decel limit")
             plt.scatter(dfs['vel_accel'].elapsed_time, dfs['vel_accel'][fields['accel']], label = "actual")
-            plt.ylabel("Acceleration (m/s^2)")
-            finish_plot("Linear acceleration (commanded limits vs. actual)", save_figs)
-
-        # crosstrack distance from vehicle centroid to center dashed line 
-        if 3 in plots:
-            df_cl = pd.read_csv("misc/sp_loop_centerline.csv")
-            df_cl = df_cl.set_index(df_cl.way_id * 10000 + df_cl.way_pos) #ensure correct ordering
-            ## convert points to a linestring
-            ## based on https://stackoverflow.com/questions/51071365/convert-points-to-lines-geopandas
-            points_list = [Point(xy) for xy in zip(df_cl.X, df_cl.Y)]
-            centerline = LineString(points_list)
-            ## get distance to centerline
-            gdf_pose = gpd.GeoDataFrame(dfs['pose'], geometry=gpd.points_from_xy(dfs['pose'][fields['pose_x']],dfs['pose'][fields['pose_y']]))
-            gdf_pose['dist_to_cl'] = gdf_pose.geometry.distance(centerline)
-            ## setup figure
-            plt.figure(3)
-            plt.scatter(gdf_pose.elapsed_time, gdf_pose.dist_to_cl, label="distance") 
-            plt.ylabel("Crosstrack distance to road centerline (m)")
-            plt.ylim(0,3.4) # Tim's assumption: lane width is 3.4m = 11ft
-            finish_plot("Distance: vehicle centroid to road centerline", save_figs)
-
-        # throttle pct actual vs commanded
-        if 4 in plots:
-            plt.figure(4)
-            plt.scatter(dfs['throttle_cmd'].elapsed_time, dfs['throttle_cmd'][fields['throttle_cmd']], label="commanded")
-            plt.scatter(dfs['throttle'].elapsed_time, dfs['throttle'][fields['throttle_act']], label="actual")
-            if veh == "F":
-                plt.ylabel("Throttle (range 0.15 to 0.80)")
-            else:
-                plt.ylabel("Throttle (percent))")
-            finish_plot("Throttle (commanded vs. actual)", save_figs)
-
-        # steering angle actual vs commanded
-        if 5 in plots:
-            plt.figure(5)
-            plt.scatter(dfs['steer_cmd'].elapsed_time, dfs['steer_cmd'][fields['steer_cmd']], label="commanded")
-            plt.scatter(dfs['steer'].elapsed_time, dfs['steer'][fields['steer_act']], label="actual")
-            plt.ylabel("Steering angle (rad)")
-            finish_plot("Steering (commanded vs. actual)", save_figs)
-
-        # brake pct actual vs commanded
-        if 6 in plots:
-            plt.figure(6)
-            plt.scatter(dfs['brake_cmd'].elapsed_time, dfs['brake_cmd'][fields['brake_cmd']], label="commanded")
-            plt.scatter(dfs['brake'].elapsed_time, dfs['brake'][fields['brake_act']], label="actual")
-            if veh == "F":
-                plt.ylabel("Braking (range 0.15 to 0.80)")
-            else:
-                plt.ylabel("Braking (percent)")
-            finish_plot("Braking (commanded vs. actual)", save_figs)
-
-
-    if plot_type == "line":
-        # get state of CARMA system (4=ENGAGED) 
-        #always generate for reference
-        plt.figure(0)
-        plt.plot(dfs['state'].elapsed_time, dfs['state'][fields['state']], label="state")
-        finish_plot("CARMA System state", False)
-
-        # speed, commanded vs actual
-        if 1 in plots:
-            plt.figure(1)
-            plt.plot(dfs['cmd'].elapsed_time, dfs['cmd'][fields['spd_cmd']], label = "{}/{}".format(topics['cmd'], fields['spd_cmd']))
-            plt.plot(dfs['spd'].elapsed_time, dfs['spd'][fields['spd']], label = "{}/{}".format(topics['spd'], fields['spd']))
-            plt.ylabel("Speed (m/s)")
-            finish_plot("Speed (commanded vs. actual)", save_figs)
-
-        # linear accel, commanded limits vs actual
-        if 2 in plots:
-            plt.figure(2)
+        elif plot_type == "line":
             plt.plot(dfs['cmd'].elapsed_time, dfs['cmd'][fields['accel_lim']], label = "{}/{}".format(topics['cmd'], fields['accel_lim']))
             plt.plot(dfs['cmd'].elapsed_time, -1 * dfs['cmd'][fields['decel_lim']], label = "{}/{}".format(topics['cmd'], fields['decel_lim']))
             plt.plot(dfs['vel_accel'].elapsed_time, dfs['vel_accel'][fields['accel']], label = "{}/{}".format(topics['vel_accel'], fields['accel']))
-            plt.ylabel("Acceleration (m/s^2)")
-            finish_plot("Linear acceleration (commanded limits vs. actual)", save_figs)
+        plt.ylabel("Acceleration (m/s^2)")
+        finish_plot("Linear acceleration (commanded limits vs. actual)", save_figs)
 
+    # crosstrack distance from vehicle centroid to center dashed line 
         # crosstrack distance from vehicle centroid to center dashed line 
-        if 3 in plots:
-            df_cl = pd.read_csv("misc/sp_loop_centerline.csv")
-            df_cl = df_cl.set_index(df_cl.way_id * 10000 + df_cl.way_pos) #ensure correct ordering
-            ## convert points to a linestring
-            ## based on https://stackoverflow.com/questions/51071365/convert-points-to-lines-geopandas
-            points_list = [Point(xy) for xy in zip(df_cl.X, df_cl.Y)]
-            centerline = LineString(points_list)
-            ## get distance to centerline
-            gdf_pose = gpd.GeoDataFrame(dfs['pose'], geometry=gpd.points_from_xy(dfs['pose'][fields['pose_x']],dfs['pose'][fields['pose_y']]))
-            gdf_pose['dist_to_cl'] = gdf_pose.geometry.distance(centerline)
-            ## setup figure
-            plt.figure(3)
+    # crosstrack distance from vehicle centroid to center dashed line 
+    if 3 in plots:
+        df_cl = pd.read_csv("misc/sp_loop_centerline.csv")
+        df_cl = df_cl.set_index(df_cl.way_id * 10000 + df_cl.way_pos) #ensure correct ordering
+        ## convert points to a linestring
+        ## based on https://stackoverflow.com/questions/51071365/convert-points-to-lines-geopandas
+        points_list = [Point(xy) for xy in zip(df_cl.X, df_cl.Y)]
+        centerline = LineString(points_list)
+        ## get distance to centerline
+        gdf_pose = gpd.GeoDataFrame(dfs['pose'], geometry=gpd.points_from_xy(dfs['pose'][fields['pose_x']],dfs['pose'][fields['pose_y']]))
+        gdf_pose['dist_to_cl'] = gdf_pose.geometry.distance(centerline)
+        ## setup figure
+        plt.figure(3)
+        if plot_type == "scatter":
+            plt.scatter(gdf_pose.elapsed_time, gdf_pose.dist_to_cl, label="distance") 
+        elif plot_type == "line":
             plt.plot(gdf_pose.elapsed_time, gdf_pose.dist_to_cl, label="distance") 
-            plt.ylabel("Crosstrack distance to road centerline (m)")
-            plt.ylim(0,3.4) # Tim's assumption: lane width is 3.4m = 11ft
-            finish_plot("Distance: vehicle centroid to road centerline", save_figs)
+        plt.ylabel("Crosstrack distance to road centerline (m)")
+        plt.ylim(0,3.4) # Tim's assumption: lane width is 3.4m = 11ft
+        finish_plot("Distance: vehicle centroid to road centerline", save_figs)
 
-        # throttle pct actual vs commanded
-        if 4 in plots:
-            plt.figure(4)
+    # throttle pct actual vs commanded
+    if 4 in plots:
+        plt.figure(4)
+        if plot_type == "scatter":
+            plt.scatter(dfs['throttle_cmd'].elapsed_time, dfs['throttle_cmd'][fields['throttle_cmd']], label="commanded")
+            plt.scatter(dfs['throttle'].elapsed_time, dfs['throttle'][fields['throttle_act']], label="actual")
+        elif plot_type == "line":
             plt.plot(dfs['throttle_cmd'].elapsed_time, dfs['throttle_cmd'][fields['throttle_cmd']], label="{}/{}".format(topics['throttle_cmd'], fields['throttle_cmd']))
             plt.plot(dfs['throttle'].elapsed_time, dfs['throttle'][fields['throttle_act']], label="{}/{}".format(topics['throttle'], fields['throttle_act']))
-            if veh == "F":
-                plt.ylabel("Throttle (range 0.15 to 0.80)")
-            else:
-                plt.ylabel("Throttle (percent))")
-            finish_plot("Throttle (commanded vs. actual)", save_figs)
+        if veh == "F":
+            plt.ylabel("Throttle (range 0.15 to 0.80)")
+        else:
+            plt.ylabel("Throttle (percent))")
+        finish_plot("Throttle (commanded vs. actual)", save_figs)
 
-        # steering angle actual vs commanded
-        if 5 in plots:
-            plt.figure(5)
+    # steering angle actual vs commanded
+    if 5 in plots:
+        plt.figure(5)
+        if plot_type == "scatter":
+            plt.scatter(dfs['steer_cmd'].elapsed_time, dfs['steer_cmd'][fields['steer_cmd']], label="commanded")
+            plt.scatter(dfs['steer'].elapsed_time, dfs['steer'][fields['steer_act']], label="actual")
+        elif plot_type == "line":
             plt.plot(dfs['steer_cmd'].elapsed_time, dfs['steer_cmd'][fields['steer_cmd']], label="{}/{}".format(topics['steer_cmd'], fields['steer_cmd']))
             plt.plot(dfs['steer'].elapsed_time, dfs['steer'][fields['steer_act']], label="{}/{}".format(topics['steer'], fields['steer_act']))
-            plt.ylabel("Steering angle (rad)")
-            finish_plot("Steering (commanded vs. actual)", save_figs)
+        plt.ylabel("Steering angle (rad)")
+        finish_plot("Steering (commanded vs. actual)", save_figs)
 
-        # brake pct actual vs commanded
-        if 6 in plots:
-            plt.figure(6)
+    # brake pct actual vs commanded
+    if 6 in plots:
+        plt.figure(6)
+        if plot_type == "scatter":
+            plt.scatter(dfs['brake_cmd'].elapsed_time, dfs['brake_cmd'][fields['brake_cmd']], label="commanded")
+            plt.scatter(dfs['brake'].elapsed_time, dfs['brake'][fields['brake_act']], label="actual")
+        elif plot_type == "line":
             plt.plot(dfs['brake_cmd'].elapsed_time, dfs['brake_cmd'][fields['brake_cmd']], label="{}/{}".format(topics['brake_cmd'], fields['brake_cmd']))
             plt.plot(dfs['brake'].elapsed_time, dfs['brake'][fields['brake_act']], label="{}/{}".format(topics['brake'], fields['brake_act']))
-            if veh == "F":
-                plt.ylabel("Braking (range 0.15 to 0.80)")
-            else:
-                plt.ylabel("Braking (percent)")
-            finish_plot("Braking (commanded vs. actual)", save_figs)
+        if veh == "F":
+            plt.ylabel("Braking (range 0.15 to 0.80)")
+        else:
+            plt.ylabel("Braking (percent)")
+        finish_plot("Braking (commanded vs. actual)", save_figs)
 
-
-#generate_plots_for_run()
+#generate_plots_for_run("P_SPLMS_v3.5.3_r28")
 #plt.show()
 
-all_runs = ["F_SPLMS_v3.5.1_r1",
-"F_SPLMS_v3.5.1_r5",
-"F_SPLMS_v3.5.1_r6",
-"F_SPLMS_v3.5.1_r8",
-"F_SPLMS_v3.5.1_r9",
-"F_SPLMS_v3.5.1_r11",
-"LS_SMPL_v3.5.1_r2",
-"LS_SMPL_v3.5.1_r3",
-"LS_SMPL_v3.5.1_r4",
-"LS_SMPL_v3.5.1_r5",
-"LS_SMPL_v3.5.1_r6",
-"LS_SMPL_v3.5.1_r7",
-"LS_SMPL_v3.5.1_r8",
-"LS_SMPL_v3.5.1_r9",
-"LS_SMPL_v3.5.1_r10",
-"LS_SMPL_v3.5.1_r11",
-"P_SPLMS_v3.5.1_r1",
-"P_SPLMS_v3.5.1_r2",
-"P_SPLMS_v3.5.1_r3",
-"P_SPLMS_v3.5.1_r4",
-"P_SPLMS_v3.5.1_r5",
-"P_SPLMS_v3.5.1_r6",
-"P_SPLMS_v3.5.1_r7",
-"P_SPLMS_v3.5.1_r8",
-"P_SPLMS_v3.5.1_r9",
-"P_SPLMS_v3.5.1_r13",
-"P_SPLMS_v3.5.1_r14"]
+all_runs = [
+"P_SPLMS_v3.5.3_r28"
+]
 
 for runid in all_runs:
     # generate all, both types

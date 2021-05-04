@@ -44,17 +44,44 @@ def finish_plot(plot_title, save_fig="off"):
         elif save_fig == "html":
             mpld3.save_html(plt.gcf(), "Figure_{}.html".format(plt.gcf().number))
 
+# this still needs some work (e.g., on run 18 the outputs don't match guidance/route_state)
+# but it's a start
+def calc_lanelet_pos(pose_df):
+    gdf = gpd.GeoDataFrame(pose_df, geometry=gpd.points_from_xy(pose_df.x, pose_df.y))
+    
+    lanelets = pd.read_csv("C:/Users/ian.berg/Documents/from-s3-temp/sp_lanelets_with_wkt.csv")
+    lanelets["not_centerline"] = np.where(lanelets["in_out"] == 'inner_lane',  lanelets['inner_wkt'], lanelets['outer_wkt'])
+    lanelets = gpd.GeoDataFrame(lanelets, geometry= gpd.GeoSeries.from_wkt(lanelets["not_centerline"]))
+    # find index of nearest non-centerline lane marking ... uniquely IDs the lane you're in
+    # wouldn't work if the road was >2 lanes
+    gdf["matching_lanelet_index"] = gdf.geometry.apply(lambda x: lanelets.distance(x).argmin())
+
+    # change geometry to left-hand (outer, clockwise) lane marking 
+    # since crosstrack distance is defined from it
+    lanelets = lanelets.set_geometry(gpd.GeoSeries.from_wkt(lanelets.outer_wkt))
+    lanelets_s = lanelets[["lanelet","geometry"]]
+    gdf = gdf.merge(lanelets_s, how="left", left_on="matching_lanelet_index", right_index = True)
+
+    # now match fields in guidance/route_state
+    gdf = gdf.rename(columns={'lanelet': 'lanelet_id'})
+    gdf["cross_track"] =gpd.GeoSeries(gdf["geometry_x"]).distance(gpd.GeoSeries(gdf["geometry_y"]))
+    gdf["lanelet_downtrack"] =gpd.GeoSeries(gdf["geometry_y"]).project(gpd.GeoSeries(gdf["geometry_x"]))
+
+    return gdf
 
 # %%
 dfs = {}
-dfs["rd_objs"] = pd.read_csv("core_validation/environment_roadway_objects.csv")
+dfs["rd_objs"] = pd.read_csv('C:/Users/Public/Documents/outcsv/LS_r19_environment_roadway_objects.csv')
 dfs["sv_pose"] = load_topic("localization_current_pose.csv")
-dfs["sv_lane"] = load_topic("guidance_route_state.csv")
+try:
+    dfs["sv_lane"] = load_topic("guidance_route_state.csv")
+except:
+    dfs["sv_lane"] = calc_lanelet_pos(dfs["sv_pose"])
 dfs = calc_elapsed_time(dfs)
 
 
 # %%
-# trip to what we want to join, and set type to int64 for roadway objects
+# trim to what we want to join, and set type to int64 for roadway objects
 # then ensure sorted by rosbagTimestamp for merge_asof 
 dfs["sv_pose"] = dfs["sv_pose"].sort_values("rosbagTimestamp")
 dfs["sv_pose_t"] =  dfs["sv_pose"][["rosbagTimestamp","x","y","z"]]
@@ -98,14 +125,14 @@ df_remaining = df[~df["rosbagTimestamp"].isin(easy_results["rosbagTimestamp"])]
 # %%
 sp_loop_right_lane_ids = [23813,24078,24564,24972,25521,25585,25731,27738,27817,28737,29729]
 sp_loop_left_lane_ids = [23812,24077,24563,24971,25520,25584,25730,27737,27816,28736,29728]
-df_remaining[df_remaining["sv_lanelet"].isin(sp_loop_right_lane_ids)] # returns them all, so we won't worry about the left lane
+df_remaining_r = df_remaining[df_remaining["sv_lanelet"].isin(sp_loop_right_lane_ids)] # returns them all, so we won't worry about the left lane
 
-df_remaining = df_remaining.assign(sv_lanelet_ahead = df_remaining["sv_lanelet"].apply(lambda x: sp_loop_right_lane_ids[(sp_loop_right_lane_ids.index(x)+1) % len(sp_loop_right_lane_ids)]))
+df_remaining_r = df_remaining_r.assign(sv_lanelet_ahead = df_remaining_r["sv_lanelet"].apply(lambda x: sp_loop_right_lane_ids[(sp_loop_right_lane_ids.index(x)+1) % len(sp_loop_right_lane_ids)]))
 
 
 # %%
-df_remaining[df_remaining["lanelet_id"]==df_remaining["sv_lanelet_ahead"]]
-#again empty, so not dealing with for now
+df_remaining_r[df_remaining_r["lanelet_id"]==df_remaining_r["sv_lanelet_ahead"]]
+#TODO: handle this case as well as left lane case
 
 
 # %%
@@ -120,10 +147,12 @@ cmap = ListedColormap(cs.values())
 plt.figure(3)
 plt.scatter(easy_results.elapsed_time, easy_results.dt_diff, c=easy_results.object_id, cmap=cmap)
 plt.ylabel("Difference in downtrack distance (m)")
-finish_plot("Downtrack distance to nearest object ahead in same lanelet (centroid to centroid)", "png")
+finish_plot("Downtrack distance to nearest object ahead in same lanelet (centroid to centroid)")
 
+plt.show()
 
 # %%
+'''
 import math
 easy_results = easy_results.reset_index(drop=True)
 easy_results["dist_act"]= (
@@ -138,3 +167,4 @@ plt.scatter(easy_results.elapsed_time, easy_results.dif_dists)
 
 plt.show()
 # %%
+'''

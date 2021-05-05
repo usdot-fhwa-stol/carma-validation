@@ -84,9 +84,9 @@ dfs = calc_elapsed_time(dfs)
 # trim to what we want to join, and set type to int64 for roadway objects
 # then ensure sorted by rosbagTimestamp for merge_asof 
 dfs["sv_pose"] = dfs["sv_pose"].sort_values("rosbagTimestamp")
-dfs["sv_pose_t"] =  dfs["sv_pose"][["rosbagTimestamp","x","y","z"]]
+dfs["sv_pose_t"] = dfs["sv_pose"][["rosbagTimestamp","x","y","z"]]
 dfs["sv_pose_t"] = dfs["sv_pose_t"].rename(columns={"x": "sv_x", "y": "sv_y", "z": "sv_z", "rosbagTimestamp": "rosbagTimestamp_p"})
-dfs["sv_lane_t"] =  dfs["sv_lane"][["rosbagTimestamp","lanelet_id","cross_track", "lanelet_downtrack"]]
+dfs["sv_lane_t"] = dfs["sv_lane"][["rosbagTimestamp","lanelet_id","cross_track", "lanelet_downtrack"]]
 dfs["sv_lane_t"] = dfs["sv_lane_t"].rename(columns={"lanelet_id": "sv_lanelet", "cross_track": "sv_cross", "lanelet_downtrack": "sv_down", "rosbagTimestamp": "rosbagTimestamp_l"})
 
 dfs["rd_objs"].rosbagTimestamp = dfs["rd_objs"].rosbagTimestamp.astype("int64")
@@ -104,7 +104,7 @@ df = pd.merge_asof(df, dfs["sv_lane_t"], left_on="rosbagTimestamp", right_on="ro
 
 
 # %%
-df = df[df["sv_lanelet"] > 0] # filter out before the vehicle has localized itself
+df = df[df["sv_lanelet"] > 0]  # filter out before the vehicle has localized itself
 
 
 # %%
@@ -125,7 +125,7 @@ df_remaining = df[~df["rosbagTimestamp"].isin(easy_results["rosbagTimestamp"])]
 # %%
 sp_loop_right_lane_ids = [23813,24078,24564,24972,25521,25585,25731,27738,27817,28737,29729]
 sp_loop_left_lane_ids = [23812,24077,24563,24971,25520,25584,25730,27737,27816,28736,29728]
-df_remaining_r = df_remaining[df_remaining["sv_lanelet"].isin(sp_loop_right_lane_ids)] # returns them all, so we won't worry about the left lane
+df_remaining_r = df_remaining[df_remaining["sv_lanelet"].isin(sp_loop_right_lane_ids)]  # returns them all, so we won't worry about the left lane
 
 df_remaining_r = df_remaining_r.assign(sv_lanelet_ahead = df_remaining_r["sv_lanelet"].apply(lambda x: sp_loop_right_lane_ids[(sp_loop_right_lane_ids.index(x)+1) % len(sp_loop_right_lane_ids)]))
 

@@ -2,11 +2,12 @@
 # for a cleaner file than the default csv extraction
 
 import rosbag
-import pandas as pd 
+import pandas as pd
 
 # downloaded bag locally (to the EC2 instance) first
 # trying to use the bag in D:/ was unsuccessful, just started eating up memory
-bag = rosbag.Bag("C:/Users/ian.berg/Documents/from-s3-temp/LS_SPLMS_v3.5.3_r18_down-selected.bag")
+run = "LS_SPLMS_v3.5.3_r18"
+bag = rosbag.Bag("C:/Users/Public/Documents/from-s3-temp/{}_down-selected.bag".format(run))
 
 obj_cols = ["rosbagTimestamp","object_id","pos_x","pos_y","pos_z","orient_x","orient_y","orient_z","orient_w","speed","size_x","size_y","size_z","confidence","type","cv_type","lanelet_id","cross_track","down_track"]
 df_all_obj = pd.DataFrame(columns = obj_cols)
@@ -26,7 +27,7 @@ for topic, msg, t in bag.read_messages(topics="/environment/roadway_objects"):
         obj["orient_y"] = item.object.pose.pose.orientation.y
         obj["orient_z"] = item.object.pose.pose.orientation.z
         obj["orient_w"] = item.object.pose.pose.orientation.w
-        obj["speed"] = item.object.velocity.twist.linear.x # should check that y and z are always empty, looks to be true
+        obj["speed"] = item.object.velocity.twist.linear.x  # should check that y and z are always empty, looks to be true
         obj["size_x"] = item.object.size.x
         obj["size_y"] = item.object.size.y
         obj["size_z"] = item.object.size.z
@@ -40,4 +41,4 @@ for topic, msg, t in bag.read_messages(topics="/environment/roadway_objects"):
     df_msg = df_msg.drop_duplicates() # in sample data, each message contains many duplicate copies of the same object
     df_all_obj = df_all_obj.append(df_msg, ignore_index = True)
 
-df_all_obj.to_csv("environment_roadway_objects.csv", index=False)
+df_all_obj.to_csv("{}_environment_roadway_objects.csv".format(run), index=False)

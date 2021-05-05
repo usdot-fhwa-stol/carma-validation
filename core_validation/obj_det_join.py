@@ -49,7 +49,7 @@ def finish_plot(plot_title, save_fig="off"):
 def calc_lanelet_pos(pose_df):
     gdf = gpd.GeoDataFrame(pose_df, geometry=gpd.points_from_xy(pose_df.x, pose_df.y))
     
-    lanelets = pd.read_csv("C:/Users/ian.berg/Documents/from-s3-temp/sp_lanelets_with_wkt.csv")
+    lanelets = pd.read_csv("misc/sp_lanelets_with_wkt.csv")
     lanelets["not_centerline"] = np.where(lanelets["in_out"] == 'inner_lane',  lanelets['inner_wkt'], lanelets['outer_wkt'])
     lanelets = gpd.GeoDataFrame(lanelets, geometry= gpd.GeoSeries.from_wkt(lanelets["not_centerline"]))
     # find index of nearest non-centerline lane marking ... uniquely IDs the lane you're in

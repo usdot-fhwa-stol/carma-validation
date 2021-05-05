@@ -83,8 +83,6 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
 
     def finish_plot(plot_title, save_fig, trim_plot=True):
         plt.xlabel("Time (elapsed seconds)")
-        # TODO: should not reference outside variables without passing them in
-        # I think nesting this in a "generate plots" fn resolves this?
         if trim_plot:
             plt.xlim(carma_start_time-10,carma_end_time+10)
         left, right = plt.xlim()
@@ -103,7 +101,6 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
             plt.savefig("C:/Users/Public/Documents/outplots/{}/{}/Figure_{}.png".format(run, plot_type, plt.gcf().number))
         elif save_fig == "html":
             mpld3.save_html(plt.gcf(), "C:/Users/Public/Documents/outhtml/{}/{}/Figure_{}.html".format(run, plot_type, plt.gcf().number))
-
 
 
     bucket = 'preprocessed-carma-core-validation'
@@ -137,7 +134,7 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
     fields['vert_accel_nov'] = 'vertical_acceleration'
     fields['pose_x'] = 'x'
     fields['pose_y'] = 'y'
-    fields['accel'] = 'accleration' #yes this is a typo but it's how it's spelled in the msg spec
+    fields['accel'] = 'accleration'  # yes this is a typo but it's how it's spelled in the msg spec
 
     if veh == "P":
         topics['spd'] = "hardware_interface_misc_report.csv"
@@ -235,14 +232,12 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
         plt.rcParams['axes.facecolor'] = 'lightblue'
 
     # get state of CARMA system (4=ENGAGED) 
-        # get state of CARMA system (4=ENGAGED) 
-    # get state of CARMA system (4=ENGAGED) 
     #always generate for reference
     plt.figure(0)
     if plot_type == "scatter":
         plt.scatter(dfs['state'].elapsed_time, dfs['state'][fields['state']], label="state")
     elif plot_type == "line":
-        plt.plot(dfs['state'].elapsed_time, dfs['state'][fields['state']], label="state")
+        plt.plot(dfs['state'].elapsed_time, dfs['state'][fields['state']], label="{}/{}".format(topics['state'], fields['state']))
     finish_plot("CARMA System state", False)
 
     # speed, commanded vs actual
@@ -276,7 +271,7 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
     # crosstrack distance from vehicle centroid to center dashed line 
     if 3 in plots:
         df_cl = pd.read_csv("misc/sp_loop_centerline.csv")
-        df_cl = df_cl.set_index(df_cl.way_id * 10000 + df_cl.way_pos) #ensure correct ordering
+        df_cl = df_cl.set_index(df_cl.way_id * 10000 + df_cl.way_pos)  # ensure correct ordering
         ## convert points to a linestring
         ## based on https://stackoverflow.com/questions/51071365/convert-points-to-lines-geopandas
         points_list = [Point(xy) for xy in zip(df_cl.X, df_cl.Y)]
@@ -287,11 +282,11 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
         ## setup figure
         plt.figure(3)
         if plot_type == "scatter":
-            plt.scatter(gdf_pose.elapsed_time, gdf_pose.dist_to_cl, label="distance") 
+            plt.scatter(gdf_pose.elapsed_time, gdf_pose.dist_to_cl, label="distance")
         elif plot_type == "line":
-            plt.plot(gdf_pose.elapsed_time, gdf_pose.dist_to_cl, label="distance") 
+            plt.plot(gdf_pose.elapsed_time, gdf_pose.dist_to_cl, label="distance")
         plt.ylabel("Crosstrack distance to road centerline (m)")
-        plt.ylim(0,3.4) # Tim's assumption: lane width is 3.4m = 11ft
+        plt.ylim(0,3.4)  # Tim's assumption: lane width is 3.4m = 11ft
         finish_plot("Distance: vehicle centroid to road centerline", save_figs)
 
     # throttle pct actual vs commanded
@@ -336,6 +331,110 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
             plt.ylabel("Braking (percent)")
         finish_plot("Braking (commanded vs. actual)", save_figs)
 
+    '''
+    dfs['corrimudata']['novatel_time'] = dfs['corrimudata'].secs + dfs['corrimudata'].nsecs/1000000000.0
+    # calculate yaw rate, lateral acceleration, longitundinal acceleration, vertical acceleration from Novatel IMU
+    imu_diff = dfs['corrimudata']['novatel_time'].diff().to_frame()
+    imu_diff['yaw_rate'] = dfs['corrimudata'][fields['yaw_rate_nov']] / imu_diff['novatel_time']
+    imu_diff['lat_accel'] = dfs['corrimudata'][fields['lat_accel_nov']] / imu_diff['novatel_time']
+    imu_diff['long_accel'] = dfs['corrimudata'][fields['long_accel_nov']] / imu_diff['novatel_time']
+    imu_diff['vert_accel'] = dfs['corrimudata'][fields['vert_accel_nov']] / imu_diff['novatel_time']
+
+    ## setup figure
+    # Ford, Pacifica - yaw rate
+    if veh != "SL":
+        plt.figure(7)
+        plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['yaw_rate'], label="derived")
+        plt.ylabel("Yaw rate (rad/s)")
+        finish_plot("Yaw rate: calculated from Novatel IMU", save_figs)
+    else:
+        # Lexus - yaw rate, novatel vs pacmod
+        plt.figure(7)
+        plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['yaw_rate'], label="novatel")
+        plt.scatter(dfs['yaw_rate'].elapsed_time, dfs['yaw_rate'][fields['yaw_rate_act']], label = "pacmod")
+        plt.ylabel("Yaw rate (rad/s)")
+        finish_plot("Yaw rate (novatel vs. imu)", save_figs)
+
+    # lateral accel, novatel vs imu
+    plt.figure(8)
+    plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['lat_accel'], label = "novatel")
+    plt.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['lat_accel']], label = "imu")
+    plt.ylabel("Lateral acceleration (m/s^2)")
+    # plt.ylim(-5,5)
+    # plt.figtext(0.99, 0.01,
+    #  '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
+    #      len(imu_diff.loc[abs(imu_diff['lat_accel']) > 5, 'lat_accel']),
+    #      len(imu_diff['lat_accel']),
+    #      np.nanmin(imu_diff['lat_accel']),
+    #      np.nanmax(imu_diff['lat_accel'])
+    #  ), horizontalalignment='right')
+    finish_plot("Lateral acceleration (novatel vs. imu)", save_figs)
+
+    # longitudinal accel, novatel vs imu
+    plt.figure(9)
+    plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['long_accel'], label = "novatel")
+    plt.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['long_accel']], label = "imu")
+    plt.ylabel("Longitudinal acceleration (m/s^2)")
+    # plt.ylim(-5,5)
+    # plt.figtext(0.99, 0.01,
+    #  '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
+    #      len(imu_diff.loc[abs(imu_diff['long_accel']) > 5, 'long_accel']),
+    #      len(imu_diff['long_accel']),
+    #      np.nanmin(imu_diff['long_accel']),
+    #      np.nanmax(imu_diff['long_accel'])
+    #  ), horizontalalignment='right')
+    finish_plot("Longitudinal acceleration (novatel vs. imu)", save_figs)
+
+    # vertical accel, novatel vs imu
+    plt.figure(10)
+    plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['vert_accel'], label = "novatel")
+    plt.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['vert_accel']], label = "imu")
+    plt.ylabel("Vertical acceleration (m/s^2)")
+    # plt.ylim(-5,5)
+    # plt.figtext(0.99, 0.01,
+    #  '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
+    #      len(imu_diff.loc[abs(imu_diff['vert_accel']) > 5, 'vert_accel']),
+    #      len(imu_diff['vert_accel']),
+    #      np.nanmin(imu_diff['vert_accel']),
+    #      np.nanmax(imu_diff['vert_accel'])
+    #  ), horizontalalignment='right')
+    finish_plot("Vertical acceleration (novatel vs. imu)", save_figs)
+
+    fig = plt.figure(11)
+    ax1 = fig.add_subplot()
+    ax1.set_xlabel('Time (elapsed seconds)')
+    plt.xlim(max(0,carma_start_time-10),carma_end_time+10)
+    left, right = plt.xlim()
+    bottom, top = plt.ylim()
+    plt.axvspan(left, carma_start_time, color='lightblue', alpha=0.5)
+    plt.axvspan(carma_end_time, right, color='lightblue', alpha=0.5)
+
+    color11 = 'tab:red'
+    color12 = 'tab:orange'
+    ax1.set_ylabel('Steering angle (rad)', color=color11)
+    ax1.scatter(dfs['steer_cmd'].elapsed_time, dfs['steer_cmd'][fields['steer_cmd']], label = "steer commanded", color=color11)
+    ax1.scatter(dfs['steer'].elapsed_time, dfs['steer'][fields['steer_act']], label = "steer actual", color=color12)
+    ax1.tick_params(axis='y', labelcolor=color11)
+    # ax1.legend(markerscale=3, loc='best')
+
+    ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+
+    color21 = 'tab:blue'
+    color22 = 'tab:green'
+    ax2.set_ylabel('Lateral acceleration (m/s^2)', color=color21)  # we already handled the x-label with ax1
+    ax2.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['lat_accel']], label = "lat accel actual", color=color21)
+    # plt.ylim(-5,5) # reasonable acceleration limits
+    ax2.tick_params(axis='y', labelcolor=color21)
+
+    handles, labels = [(a+b) for a, b in zip(ax1.get_legend_handles_labels(), ax2.get_legend_handles_labels())]
+    plt.legend(handles, labels, markerscale=3)
+    plt.grid(True, alpha=0.5)
+    plt.title("Steering and Lateral acceleration (commanded vs. actual)" + "\n" + run)
+    plt.tight_layout()  # otherwise the right y-label is slightly clipped
+    # finish_plot("Steering and Lateral acceleration (commanded vs. actual)", save_figs)
+    '''
+
+
 #generate_plots_for_run("P_SPLMS_v3.5.3_r28")
 #plt.show()
 
@@ -351,106 +450,3 @@ for runid in all_runs:
     plt.close("all")
     print(runid)
 
-'''
-dfs['corrimudata']['novatel_time'] = dfs['corrimudata'].secs + dfs['corrimudata'].nsecs/1000000000.0
-# calculate yaw rate, lateral acceleration, longitundinal acceleration, vertical acceleration from Novatel IMU
-imu_diff = dfs['corrimudata']['novatel_time'].diff().to_frame()
-imu_diff['yaw_rate'] = dfs['corrimudata'][fields['yaw_rate_nov']] / imu_diff['novatel_time']
-imu_diff['lat_accel'] = dfs['corrimudata'][fields['lat_accel_nov']] / imu_diff['novatel_time']
-imu_diff['long_accel'] = dfs['corrimudata'][fields['long_accel_nov']] / imu_diff['novatel_time']
-imu_diff['vert_accel'] = dfs['corrimudata'][fields['vert_accel_nov']] / imu_diff['novatel_time']
-
-## setup figure
-# Ford, Pacifica - yaw rate
-if veh != "SL":
-    plt.figure(7)
-    plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['yaw_rate'], label="derived")
-    plt.ylabel("Yaw rate (rad/s)")
-    finish_plot("Yaw rate: calculated from Novatel IMU", save_figs)
-else:
-    # Lexus - yaw rate, novatel vs pacmod
-    plt.figure(7)
-    plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['yaw_rate'], label="novatel")
-    plt.scatter(dfs['yaw_rate'].elapsed_time, dfs['yaw_rate'][fields['yaw_rate_act']], label = "pacmod")
-    plt.ylabel("Yaw rate (rad/s)")
-    finish_plot("Yaw rate (novatel vs. imu)", save_figs)
-
-# lateral accel, novatel vs imu
-plt.figure(8)
-plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['lat_accel'], label = "novatel")
-plt.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['lat_accel']], label = "imu")
-plt.ylabel("Lateral acceleration (m/s^2)")
-# plt.ylim(-5,5)
-# plt.figtext(0.99, 0.01,
-#  '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
-#      len(imu_diff.loc[abs(imu_diff['lat_accel']) > 5, 'lat_accel']),
-#      len(imu_diff['lat_accel']),
-#      np.nanmin(imu_diff['lat_accel']),
-#      np.nanmax(imu_diff['lat_accel'])
-#  ), horizontalalignment='right')
-finish_plot("Lateral acceleration (novatel vs. imu)", save_figs)
-
-# longitudinal accel, novatel vs imu
-plt.figure(9)
-plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['long_accel'], label = "novatel")
-plt.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['long_accel']], label = "imu")
-plt.ylabel("Longitudinal acceleration (m/s^2)")
-# plt.ylim(-5,5)
-# plt.figtext(0.99, 0.01,
-#  '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
-#      len(imu_diff.loc[abs(imu_diff['long_accel']) > 5, 'long_accel']),
-#      len(imu_diff['long_accel']),
-#      np.nanmin(imu_diff['long_accel']),
-#      np.nanmax(imu_diff['long_accel'])
-#  ), horizontalalignment='right')
-finish_plot("Longitudinal acceleration (novatel vs. imu)", save_figs)
-
-# vertical accel, novatel vs imu
-plt.figure(10)
-plt.scatter(dfs['corrimudata'].elapsed_time, imu_diff['vert_accel'], label = "novatel")
-plt.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['vert_accel']], label = "imu")
-plt.ylabel("Vertical acceleration (m/s^2)")
-# plt.ylim(-5,5)
-# plt.figtext(0.99, 0.01,
-#  '{} of {} novatel data outside plot range; min {:.2f}; max {:.2f}'.format(
-#      len(imu_diff.loc[abs(imu_diff['vert_accel']) > 5, 'vert_accel']),
-#      len(imu_diff['vert_accel']),
-#      np.nanmin(imu_diff['vert_accel']),
-#      np.nanmax(imu_diff['vert_accel'])
-#  ), horizontalalignment='right')
-finish_plot("Vertical acceleration (novatel vs. imu)", save_figs)
-
-
-fig = plt.figure(11)
-ax1 = fig.add_subplot()
-ax1.set_xlabel('Time (elapsed seconds)')
-plt.xlim(max(0,carma_start_time-10),carma_end_time+10)
-left, right = plt.xlim()
-bottom, top = plt.ylim()
-plt.axvspan(left, carma_start_time, color='lightblue', alpha=0.5)
-plt.axvspan(carma_end_time, right, color='lightblue', alpha=0.5)
-
-color11 = 'tab:red'
-color12 = 'tab:orange'
-ax1.set_ylabel('Steering angle (rad)', color=color11)
-ax1.scatter(dfs['steer_cmd'].elapsed_time, dfs['steer_cmd'][fields['steer_cmd']], label = "steer commanded", color=color11)
-ax1.scatter(dfs['steer'].elapsed_time, dfs['steer'][fields['steer_act']], label = "steer actual", color=color12)
-ax1.tick_params(axis='y', labelcolor=color11)
-# ax1.legend(markerscale=3, loc='best')
-
-ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-
-color21 = 'tab:blue'
-color22 = 'tab:green'
-ax2.set_ylabel('Lateral acceleration (m/s^2)', color=color21)  # we already handled the x-label with ax1
-ax2.scatter(dfs['imu'].elapsed_time, dfs['imu'][fields['lat_accel']], label = "lat accel actual", color=color21)
-# plt.ylim(-5,5) # reasonable acceleration limits
-ax2.tick_params(axis='y', labelcolor=color21)
-
-handles, labels = [(a+b) for a, b in zip(ax1.get_legend_handles_labels(), ax2.get_legend_handles_labels())]
-plt.legend(handles, labels, markerscale=3)
-plt.grid(True, alpha=0.5)
-plt.title("Steering and Lateral acceleration (commanded vs. actual)" + "\n" + run)
-plt.tight_layout()  # otherwise the right y-label is slightly clipped
-# finish_plot("Steering and Lateral acceleration (commanded vs. actual)", save_figs)
-'''

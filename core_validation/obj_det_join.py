@@ -53,7 +53,7 @@ def calc_lanelet_pos(pose_df):
     lanelets["not_centerline"] = np.where(lanelets["in_out"] == 'inner_lane',  lanelets['inner_wkt'], lanelets['outer_wkt'])
     lanelets = gpd.GeoDataFrame(lanelets, geometry= gpd.GeoSeries.from_wkt(lanelets["not_centerline"]))
     # find index of nearest non-centerline lane marking ... uniquely IDs the lane you're in
-    # wouldn't work if the road was >2 lanes
+    # wouldn't work if the road was >2 lanes - KZ: could we sum distance to left lane marking and distance to right lane marking then find argmin?
     gdf["matching_lanelet_index"] = gdf.geometry.apply(lambda x: lanelets.distance(x).argmin())
 
     # change geometry to left-hand (outer, clockwise) lane marking 
@@ -71,7 +71,7 @@ def calc_lanelet_pos(pose_df):
 
 # %%
 dfs = {}
-dfs["rd_objs"] = pd.read_csv('C:/Users/Public/Documents/outcsv/LS_r19_environment_roadway_objects.csv')
+dfs["rd_objs"] = pd.read_csv('C:/Users/Public/Documents/outcsv/LS_r18_environment_roadway_objects.csv')
 dfs["sv_pose"] = load_topic("localization_current_pose.csv")
 try:
     dfs["sv_lane"] = load_topic("guidance_route_state.csv")
@@ -85,22 +85,22 @@ dfs = calc_elapsed_time(dfs)
 # then ensure sorted by rosbagTimestamp for merge_asof 
 dfs["sv_pose"] = dfs["sv_pose"].sort_values("rosbagTimestamp")
 dfs["sv_pose_t"] =  dfs["sv_pose"][["rosbagTimestamp","x","y","z"]]
-dfs["sv_pose_t"] = dfs["sv_pose_t"].rename(columns={"x":"sv_x", "y":"sv_y", "z":"sv_z"})
+dfs["sv_pose_t"] = dfs["sv_pose_t"].rename(columns={"x": "sv_x", "y": "sv_y", "z": "sv_z", "rosbagTimestamp": "rosbagTimestamp_p"})
 dfs["sv_lane_t"] =  dfs["sv_lane"][["rosbagTimestamp","lanelet_id","cross_track", "lanelet_downtrack"]]
-dfs["sv_lane_t"] = dfs["sv_lane_t"].rename(columns={"lanelet_id": "sv_lanelet", "cross_track": "sv_cross", "lanelet_downtrack": "sv_down"})
+dfs["sv_lane_t"] = dfs["sv_lane_t"].rename(columns={"lanelet_id": "sv_lanelet", "cross_track": "sv_cross", "lanelet_downtrack": "sv_down", "rosbagTimestamp": "rosbagTimestamp_l"})
 
 dfs["rd_objs"].rosbagTimestamp = dfs["rd_objs"].rosbagTimestamp.astype("int64")
 dfs["rd_objs"] = dfs["rd_objs"].sort_values("rosbagTimestamp", ignore_index = True)
-dfs["sv_pose_t"] = dfs["sv_pose_t"].sort_values("rosbagTimestamp", ignore_index = True)
-dfs["sv_lane_t"] = dfs["sv_lane_t"].sort_values("rosbagTimestamp", ignore_index = True)
+dfs["sv_pose_t"] = dfs["sv_pose_t"].sort_values("rosbagTimestamp_p", ignore_index = True)
+dfs["sv_lane_t"] = dfs["sv_lane_t"].sort_values("rosbagTimestamp_l", ignore_index = True)
 
 
 # %%
-df = pd.merge_asof(dfs["rd_objs"], dfs["sv_pose_t"], on="rosbagTimestamp", direction='nearest')
+df = pd.merge_asof(dfs["rd_objs"], dfs["sv_pose_t"], left_on="rosbagTimestamp", right_on="rosbagTimestamp_p", direction='nearest')
 
 
 # %%
-df = pd.merge_asof(df, dfs["sv_lane_t"], on="rosbagTimestamp", direction='nearest')
+df = pd.merge_asof(df, dfs["sv_lane_t"], left_on="rosbagTimestamp", right_on="rosbagTimestamp_l", direction='nearest')
 
 
 # %%
@@ -113,7 +113,7 @@ df_easy = df[df["lanelet_id"]==df["sv_lanelet"]]
 df_easy = df_easy.assign(dt_diff = df_easy["down_track"] - df_easy["sv_down"])
 df_easy = df_easy[df_easy["dt_diff"] > 0]
 # based on https://stackoverflow.com/questions/15705630/get-the-rows-which-have-the-max-value-in-groups-using-groupby
-idx = df_easy.groupby("rosbagTimestamp")["dt_diff"].transform("min") == df_easy['dt_diff']
+idx = df_easy.groupby("rosbagTimestamp")["dt_diff"].transform("min") == df_easy['dt_diff']  # TODO: KZ - is it possible (seems pretty much impossible) for 2 mins to be equal to each other
 easy_results = df_easy[idx]
 
 

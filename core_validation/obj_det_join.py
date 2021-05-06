@@ -53,7 +53,7 @@ def calc_lanelet_pos(pose_df):
     lanelets["not_centerline"] = np.where(lanelets["in_out"] == 'inner_lane',  lanelets['inner_wkt'], lanelets['outer_wkt'])
     lanelets = gpd.GeoDataFrame(lanelets, geometry= gpd.GeoSeries.from_wkt(lanelets["not_centerline"]))
     # find index of nearest non-centerline lane marking ... uniquely IDs the lane you're in
-    # wouldn't work if the road was >2 lanes - KZ: could we sum distance to left lane marking and distance to right lane marking then find argmin?
+    # wouldn't work if the road was >2 lanes - TODO: KZ - could we sum distance to left lane marking and distance to right lane marking then find argmin?
     gdf["matching_lanelet_index"] = gdf.geometry.apply(lambda x: lanelets.distance(x).argmin())
 
     # change geometry to left-hand (outer, clockwise) lane marking 
@@ -93,6 +93,17 @@ dfs["rd_objs"].rosbagTimestamp = dfs["rd_objs"].rosbagTimestamp.astype("int64")
 dfs["rd_objs"] = dfs["rd_objs"].sort_values("rosbagTimestamp", ignore_index = True)
 dfs["sv_pose_t"] = dfs["sv_pose_t"].sort_values("rosbagTimestamp_p", ignore_index = True)
 dfs["sv_lane_t"] = dfs["sv_lane_t"].sort_values("rosbagTimestamp_l", ignore_index = True)
+
+
+# %%
+# working code for binning data with some examples of functionality
+for df in dfs.values():
+    df['datetime'] = pd.to_datetime(dfs["rd_objs"]['rosbagTimestamp'], unit='ns')
+test_pose_t = dfs["sv_pose_t"].resample('1ms', on='datetime').mean()
+test_pose_t = dfs["sv_pose_t"].resample('1ms', on='datetime').agg({'x':'mean', 'y':'mean', 'z':'min'})
+# dealing with NaN values: https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html
+test_pose_t = test_pose_t.fillna(method="pad")  # other method is "bfill" for fill values backward
+test_pose_t = test_pose_t.interpolate(method="time")  # linear interpolation based on time index, other methods available
 
 
 # %%

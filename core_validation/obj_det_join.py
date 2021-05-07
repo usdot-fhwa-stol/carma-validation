@@ -98,9 +98,9 @@ dfs["sv_lane_t"] = dfs["sv_lane_t"].sort_values("rosbagTimestamp_l", ignore_inde
 # %%
 # working code for binning data with some examples of functionality
 for df in dfs.values():
-    df['datetime'] = pd.to_datetime(dfs["rd_objs"]['rosbagTimestamp'], unit='ns')
-test_pose_t = dfs["sv_pose_t"].resample('1ms', on='datetime').mean()
-test_pose_t = dfs["sv_pose_t"].resample('1ms', on='datetime').agg({'x':'mean', 'y':'mean', 'z':'min'})
+    df['datetime'] = pd.to_datetime(df['rosbagTimestamp'], unit='ns')
+test_pose_t = dfs["sv_pose_t"].resample('10ms', on='datetime').mean()
+test_pose_t = dfs["sv_pose_t"].resample('10ms', on='datetime').agg({'x':'mean', 'y':'mean', 'z':'mean'})
 # dealing with NaN values: https://pandas.pydata.org/pandas-docs/stable/user_guide/missing_data.html
 test_pose_t = test_pose_t.fillna(method="pad")  # other method is "bfill" for fill values backward
 test_pose_t = test_pose_t.interpolate(method="time")  # linear interpolation based on time index, other methods available

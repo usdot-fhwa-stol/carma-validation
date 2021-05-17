@@ -25,7 +25,7 @@ generate_plots_for_run()
 plt.show()
 ```
 You will need to choose your parameters for `generate_plots_for_run`. 
-- run. The name of the run you want to look at. For example, `run="LS_LS_SMPL_v3.5.1_r11"`. Note that the script currently assumes you're plotting data from the week of 3/15; once April data is available we'll need to adjust this.
+- run. The name of the run you want to look at. For example, `run="LS_LS_SMPL_v3.5.1_r11"`.
 - plots. By default, the script generates seven plots. Full documentation of the topics selected, axes used, etc. is on the Volpe HW40 Teams channel. You can generate a subset of these plots by specifying their numbers in a list, e.g., `plots=[4,5,6]`. If you want them all, you can just omit this parameter. 
 	- Figure 0. state of CARMA system (always generated, even if not specified)
 	- Figure 1. speed, commanded vs actual

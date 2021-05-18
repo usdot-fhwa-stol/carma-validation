@@ -1,3 +1,4 @@
+#%%
 # setting up
 import boto3
 import numpy as np
@@ -8,6 +9,7 @@ import geopandas as gpd
 from shapely.geometry import Point, LineString
 import mpld3
 
+#%%
 # helper from misc folder
 def csv_loc_from_run(run_name):
     # TODO: generalize or pass as input
@@ -73,7 +75,7 @@ def rle(inarray):
         p = np.cumsum(np.append(0, z))[:-1]  # positions
         return (z, p, ia[i])
 
-
+#%%
 def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], plot_type = "scatter", save_figs = "off"):
 # run is the name of the run
 # plots are which of 1-6 should be generated (0 is always generated for reference)
@@ -122,6 +124,7 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
     topics['corrimudata'] = "hardware_interface_corrimudata.csv"
     topics['pose'] = "localization_current_pose.csv"
     topics['vel_accel'] = "hardware_interface_velocity_accel_cov.csv"
+    topics['imu'] = "hardware_interface_imu_raw.csv"
 
     fields = {}
     fields['state'] = 'state'
@@ -138,7 +141,7 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
 
     if veh == "P":
         topics['spd'] = "hardware_interface_misc_report.csv"
-        #topics['imu'] = "hardware_interface_imu_data_raw.csv"
+        topics['imu2'] = "hardware_interface_imu_data_raw.csv"
         topics['steer'] = "hardware_interface_steering_report.csv"
         topics['steer_cmd'] = "hardware_interface_steering_cmd.csv"
         topics['throttle'] = "hardware_interface_accelerator_pedal_report.csv"
@@ -158,7 +161,6 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
         fields['brake_act'] = 'pedal_output'
     elif veh == "LS":
         topics['spd'] = "hardware_interface_pacmod_parsed_tx_vehicle_speed_rpt.csv"
-        #topics['imu'] = "hardware_interface_imu_raw.csv"
         topics['steer'] = "hardware_interface_pacmod_parsed_tx_steer_rpt.csv"
         topics['steer_cmd'] = "hardware_interface_pacmod_as_rx_steer_cmd.csv"
         topics['throttle'] = "hardware_interface_pacmod_parsed_tx_accel_rpt.csv"
@@ -180,7 +182,7 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
         fields['yaw_rate_act'] = 'yaw_rate'
     elif veh == "F":
         topics['spd'] = "hardware_interface_ds_fusion_steering_report.csv"
-        #topics['imu'] = "hardware_interface_ds_fusion_imu_data_raw.csv"
+        topics['imu2'] = "hardware_interface_ds_fusion_imu_data_raw.csv"
         topics['steer'] = "hardware_interface_ds_fusion_steering_report.csv"
         topics['steer_cmd'] = "hardware_interface_ds_fusion_steering_cmd.csv"
         topics['throttle'] = "hardware_interface_ds_fusion_throttle_report.csv"
@@ -434,19 +436,151 @@ def generate_plots_for_run(run = "LS_SMPL_v3.5.1_r11", plots = [1,2,3,4,5,6], pl
     # finish_plot("Steering and Lateral acceleration (commanded vs. actual)", save_figs)
     '''
 
+#%%
+generate_plots_for_run("P_SPLMS_v3.5.1_r7",plots=[1], plot_type="line")
+plt.show()
 
-#generate_plots_for_run("P_SPLMS_v3.5.3_r28")
+#%%
+
+# all_runs = [
+# "P_SPLMS_v3.5.3_r28"
+# ]
+
+# for runid in all_runs:
+#     # generate all, both types
+#     generate_plots_for_run(run=runid, save_figs="html")
+#     plt.close("all")
+#     generate_plots_for_run(run=runid, plot_type="line", save_figs="html")
+#     plt.close("all")
+#     print(runid)
+
+#%%
+
+def comparison_plots(run = "LS_SMPL_v3.5.1_r11", plots = [1,2], plot_type = "line", save_figs = "off"):
+# run is the name of the run
+# plots are which of 1-6 should be generated (0 is always generated for reference)
+# type is either "scatter" or "line"
+# save figs options are "png", "html"; anything else is equiv to don't save
+
+
+    def finish_plot(plot_title, save_fig, trim_plot=True):
+        plt.xlabel("Time (elapsed seconds)")
+        if trim_plot:
+            plt.xlim(carma_start_time-10,carma_end_time+10)
+        left, right = plt.xlim()
+        bottom, top = plt.ylim()
+        if save_fig == "html":
+            plt.fill_betweenx([bottom, top], left, carma_start_time, color='lightblue', alpha=0.5)
+            plt.fill_betweenx([bottom, top], carma_end_time, right, color='lightblue', alpha=0.5)
+            plt.ylim(bottom, top)
+        else:
+            plt.axvspan(left, carma_start_time, color='lightblue', alpha=0.5)
+            plt.axvspan(carma_end_time, right, color='lightblue', alpha=0.5)
+        plt.legend(markerscale=3)
+        plt.grid(True, alpha=0.5)
+        plt.title(plot_title + "\n" + run)
+        if save_fig == "png":
+            plt.savefig("C:/Users/Public/Documents/outplots/{}/{}/Figure_{}.png".format(run, plot_type, plt.gcf().number))
+        elif save_fig == "html":
+            mpld3.save_html(plt.gcf(), "C:/Users/Public/Documents/outhtml/{}/{}/Figure_{}.html".format(run, plot_type, plt.gcf().number))
+
+
+    bucket = 'preprocessed-carma-core-validation'
+    #run = "LS_SMPL_v3.5.1_r11"
+    #run = "F_SPLMS_v3.5.1_r11"
+    #run = "P_SPLMS_v3.5.1_r14"
+    veh = run.split("_")[0]
+    if save_figs == "png":
+        if not os.path.exists("C:/Users/Public/Documents/outplots/{}/{}".format(run, plot_type)):
+            os.makedirs("C:/Users/Public/Documents/outplots/{}/{}".format(run, plot_type))
+    elif save_figs == "html":
+        if not os.path.exists("C:/Users/Public/Documents/outhtml/{}/{}".format(run, plot_type)):
+            os.makedirs("C:/Users/Public/Documents/outhtml/{}/{}".format(run, plot_type))
+
+    # load necessary topics
+    topics = {}
+    topics['veh_twist'] = "hardware_interface_vehicle_twist.csv"
+    topics['bestvel'] = "hardware_interface_bestvel.csv"
+    topics['est_twist'] = "localization_estimate_twist.csv"
+    topics['vel_accel'] = "hardware_interface_velocity_accel_cov.csv"
+    topics['ekf_twist'] = "localization_ekf_twist.csv"
+    topics['state'] = "guidance_state.csv"
+    topics['imu'] = "hardware_interface_imu_raw.csv"
+
+    fields = {}
+    fields['twist_long'] = 'x'
+    fields['twist_ang'] = 'z.1'
+    fields['bestvel'] = 'horizontal_speed'
+    fields['vel_accel'] = 'velocity'
+    fields['vel_accel_a'] = 'accleration'
+    fields['state'] = 'state'
+
+    if veh == "P":
+        topics['can_spd'] = "hardware_interface_misc_report.csv"
+        fields['can_spd'] = 'vehicle_speed'
+    elif veh == "LS":
+        topics['can_spd'] = "hardware_interface_pacmod_parsed_tx_vehicle_speed_rpt.csv"
+        fields['can_spd'] = 'vehicle_speed'
+    elif veh == "F":
+        topics['can_spd'] = "hardware_interface_ds_fusion_steering_report.csv"
+        fields['can_spd'] = 'speed'
+
+    dfs = {k: load_topic(bucket, run, v) for k, v in topics.items()}
+    dfs = calc_elapsed_time(dfs)
+
+    # set up scatterplot default symbol to be small
+    # and figure size (make larger than default)
+    plt.rcParams['scatter.marker'] = '.'
+    if save_figs == "html":
+        plt.rcParams['lines.markersize'] = 1
+    else:
+        plt.rcParams['lines.markersize'] = 3
+    plt.rcParams['figure.figsize'] = [8, 6]
+
+    # find longest stretch of CARMA state = 4 during run
+    z, p, ia = rle(dfs['state'].state == 4)
+    carma_never_engaged = False
+    try:
+        carma_start_ind = p[z == max(z[ia])][0]
+        carma_end_ind = carma_start_ind + z[z == max(z[ia])][0] - 1
+        carma_start_time = dfs['state'].loc[carma_start_ind, 'elapsed_time']
+        carma_end_time = dfs['state'].loc[carma_end_ind, 'elapsed_time']
+    except ValueError:
+        carma_start_time = min(dfs['state'].elapsed_time)
+        carma_end_time = max(dfs['state'].elapsed_time)
+        carma_never_engaged = True
+
+    if carma_never_engaged:
+        plt.rcParams['axes.facecolor'] = 'lightblue'
+
+    plt.figure(1)
+    # longitudinal speed
+    if 1 in plots:
+        plt.figure(1)
+        plt.plot(dfs['veh_twist'].elapsed_time, dfs['veh_twist'][fields['twist_long']], label = "{}/{}".format(topics['veh_twist'], fields['twist_long']))
+        plt.scatter(dfs['est_twist'].elapsed_time, dfs['est_twist'][fields['twist_long']], label = "{}/{}".format(topics['est_twist'], fields['twist_long']), color='grey')
+        plt.plot(dfs['ekf_twist'].elapsed_time, dfs['ekf_twist'][fields['twist_long']], label = "{}/{}".format(topics['ekf_twist'], fields['twist_long']))
+        plt.plot(dfs['vel_accel'].elapsed_time, dfs['vel_accel'][fields['vel_accel']], label = "{}/{}".format(topics['vel_accel'], fields['vel_accel']))
+        plt.plot(dfs['bestvel'].elapsed_time, dfs['bestvel'][fields['bestvel']], label = "{}/{}".format(topics['bestvel'], fields['bestvel']))
+        plt.plot(dfs['can_spd'].elapsed_time, dfs['can_spd'][fields['can_spd']], label = "{}/{}".format(topics['can_spd'], fields['can_spd']))
+
+        plt.ylabel("Longitudinal speed (m/s)")
+        finish_plot("Longitudinal speed comparison", save_figs)
+
+    if 2 in plots:
+        plt.figure(2)
+        plt.plot(dfs['veh_twist'].elapsed_time, dfs['veh_twist'][fields['twist_ang']], label = "{}/{}".format(topics['veh_twist'], fields['twist_ang']))
+        plt.plot(dfs['imu'].elapsed_time, dfs['imu'][fields['twist_ang']], label = "{}/{}".format(topics['imu'], fields['twist_ang']))
+        plt.ylabel("Yaw rate (rad/s)")
+        finish_plot("Comparison", save_figs)
+
+    if 2 in plots:
+        plt.figure(3)
+        plt.plot(dfs['vel_accel'].elapsed_time, dfs['vel_accel']['accleration'], label = "{}/{}".format(topics['vel_accel'], 'accleration'))
+        plt.scatter(dfs['imu'].elapsed_time, dfs['imu']['x.2'], label = "{}/{}".format(topics['imu'], 'x.2'), color='orange')
+        plt.ylabel("Acceleration (m/$s^2$)")
+        finish_plot("Comparison", save_figs)
+
+# %%
+#comparison_plots("F_SPLMS_v3.5.1_r11")
 #plt.show()
-
-all_runs = [
-"P_SPLMS_v3.5.3_r28"
-]
-
-for runid in all_runs:
-    # generate all, both types
-    generate_plots_for_run(run=runid, save_figs="html")
-    plt.close("all")
-    generate_plots_for_run(run=runid, plot_type="line", save_figs="html")
-    plt.close("all")
-    print(runid)
-

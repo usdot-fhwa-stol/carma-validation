@@ -57,7 +57,7 @@ def calc_lanelet_pos(pose_df):
     gdf["matching_lanelet_index"] = gdf.geometry.apply(lambda x: lanelets.distance(x).argmin())
 
     # change geometry to left-hand (outer, clockwise) lane marking 
-    # since crosstrack distance is defined from it
+    # TODO: construct a lanelet centerline, that's where crosstrack distance is actually defined from
     lanelets = lanelets.set_geometry(gpd.GeoSeries.from_wkt(lanelets.outer_wkt))
     lanelets_s = lanelets[["lanelet","geometry"]]
     gdf = gdf.merge(lanelets_s, how="left", left_on="matching_lanelet_index", right_index = True)
